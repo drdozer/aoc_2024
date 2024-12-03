@@ -1,0 +1,20 @@
+[package]
+name = "aoc_2024"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "day_1"
+path = "src/day_1.rs"
+
+[[bin]]
+name = "day_2"
+path = "src/day_2.rs"
+
+[[bin]]
+name = "day_3"
+path = "src/day_3.rs"
+
+[dependencies]
+regex = "1.11.1"
+nom = "7.1.3"
