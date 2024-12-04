@@ -119,18 +119,3 @@ pub fn part2(input: &str) -> u32 {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn part1_example() {
-        assert_eq!(part1(&parse("<EXAMPLE>")), "<RESULT>");
-    }
-
-    #[test]
-    fn part2_example() {
-        assert_eq!(part2(&parse("<EXAMPLE>")), "<RESULT>");
-    }
-}

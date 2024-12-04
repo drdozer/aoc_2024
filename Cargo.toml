@@ -4,6 +4,13 @@ version = "0.1.0"
 edition = "2021"
 authors = ["Matthew Pocock <turingatemyhamster@gmail.com>"]
 
+[profile.release]
+opt-level = 3
+debug = false
+debug_assertions = false
+overflow-checks = false
+
+
 [lib]
 bench = false
 

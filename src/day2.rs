@@ -96,18 +96,3 @@ fn is_nearly_safe(record: &Record) -> bool {
 fn is_ascending(l: u32, r: u32) -> bool {
     l < r
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn part1_example() {
-        assert_eq!(part1(&parse("<EXAMPLE>")), "<RESULT>");
-    }
-
-    #[test]
-    fn part2_example() {
-        assert_eq!(part2(&parse("<EXAMPLE>")), "<RESULT>");
-    }
-}
