@@ -4,7 +4,6 @@ use std::collections::HashMap;
 #[derive(Debug, Clone)]
 pub struct Lists(Vec<u32>, Vec<u32>);
 
-#[aoc_generator(day1)]
 pub fn parse(input: &str) -> Lists {
     let mut left_list = Vec::new();
     let mut right_list = Vec::new();
@@ -22,8 +21,8 @@ pub fn parse(input: &str) -> Lists {
 }
 
 #[aoc(day1, part1)]
-pub fn part1(input: &Lists) -> u32 {
-    let Lists(mut left_list, mut right_list) = input.clone();
+pub fn part1(input: &str) -> u32 {
+    let Lists(mut left_list, mut right_list) = parse(input);
     // We need to sum the absolte difference between items from the two lists,
     // smallest in each list to largest in each list.
     // A simple solution is to sort them, and then loop over the pairs.
@@ -43,8 +42,8 @@ pub fn part1(input: &Lists) -> u32 {
 }
 
 #[aoc(day1, part2)]
-pub fn part2(input: &Lists) -> u32 {
-    let Lists(left_list, right_list) = input;
+pub fn part2(input: &str) -> u32 {
+    let Lists(left_list, right_list) = parse(input);
 
     // We need the sum of each item in list 1 by its frequency in list 2.
     // A simple solution is to counstruct a histogram of list 2 first,

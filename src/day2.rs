@@ -13,20 +13,21 @@ fn parse_line(line: &str) -> Record {
     )
 }
 
-#[aoc_generator(day2)]
 pub fn parse(input: &str) -> Records {
     let records = input.lines().map(parse_line).collect::<Vec<_>>();
     Records(records)
 }
 
 #[aoc(day2, part1)]
-pub fn part1(records: &Records) -> usize {
+pub fn part1(input: &str) -> usize {
+    let records = parse(input);
     records.0.iter().filter(|r| is_safe(r)).count()
 }
 
 #[aoc(day2, part2)]
-pub fn part2(input: &Records) -> usize {
-    input.0.iter().filter(|r| is_nearly_safe(r)).count()
+pub fn part2(input: &str) -> usize {
+    let records = parse(input);
+    records.0.iter().filter(|r| is_nearly_safe(r)).count()
 }
 
 fn is_safe(record: &Record) -> bool {
