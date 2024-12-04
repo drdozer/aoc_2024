@@ -14,16 +14,19 @@ pub fn part1(input: &str) -> usize {
     let line_len = input.iter().take_while(|&&b| b != b'\n').count();
     let row_len = line_len + 1;
 
-    let lines = (input.len() + 1) / row_len;
-    let overhang = (input.len() + 1) % row_len;
-    debug_assert!(
-        overhang == 0 || overhang == 1,
-        "Not expecting a trailing fragment: line_len: {}, row_len: {}, lines: {}, overhang: {}",
-        line_len,
-        row_len,
-        lines,
-        overhang
-    );
+    #[cfg(debug_assertions)]
+    {
+        let lines = (input.len() + 1) / row_len;
+        let overhang = (input.len() + 1) % row_len;
+        assert!(
+            overhang == 0 || overhang == 1,
+            "Not expecting a trailing fragment: line_len: {}, row_len: {}, lines: {}, overhang: {}",
+            line_len,
+            row_len,
+            lines,
+            overhang
+        );
+    }
 
     // println!(
     //     "line length: {}, lines: {}, overhang: {}",
@@ -37,7 +40,14 @@ pub fn part1(input: &str) -> usize {
 
     // The horizontal search is very simple.
     for e in 3..input.len() {
-        let horizontal = [input[e - 3], input[e - 2], input[e - 1], input[e]];
+        let horizontal = unsafe {
+            [
+                *input.get_unchecked(e - 3),
+                *input.get_unchecked(e - 2),
+                *input.get_unchecked(e - 1),
+                *input.get_unchecked(e),
+            ]
+        };
         // if e == 3 || e == input.len() - 1 {
         //     println!(
         //         "e: {:?}, horizontal: {:?}",
@@ -52,12 +62,14 @@ pub fn part1(input: &str) -> usize {
     // All other searches involve pulling bytes from multiple lines.
     // The vertical search needs to start from where XMAS directly down from the start would end.
     for e in (3 * row_len)..input.len() {
-        let vertical = [
-            input[e - 3 * row_len],
-            input[e - 2 * row_len],
-            input[e - 1 * row_len],
-            input[e],
-        ];
+        let vertical = unsafe {
+            [
+                *input.get_unchecked(e - 3 * row_len),
+                *input.get_unchecked(e - 2 * row_len),
+                *input.get_unchecked(e - 1 * row_len),
+                *input.get_unchecked(e),
+            ]
+        };
         // if e == 3 * row_len || e == input.len() - 1 {
         //     println!("e: {:?}, vertical: {:?}", e, std::str::from_utf8(&vertical));
         // }
@@ -67,12 +79,15 @@ pub fn part1(input: &str) -> usize {
 
     // The diagonal search needs to start 3 chars further to the right.
     for e in (3 * row_len + 3)..input.len() {
-        let leading_diagonal = [
-            input[e - 3 * row_len - 3],
-            input[e - 2 * row_len - 2],
-            input[e - 1 * row_len - 1],
-            input[e],
-        ];
+        let leading_diagonal = unsafe {
+            [
+                *input.get_unchecked(e - 3 * row_len - 3),
+                *input.get_unchecked(e - 2 * row_len - 2),
+                *input.get_unchecked(e - 1 * row_len - 1),
+                *input.get_unchecked(e),
+            ]
+        };
+
         // if e == 3 * row_len + 3 || e == input.len() - 1 {
         //     println!(
         //         "e: {:?}, diagonal: {:?}",
@@ -83,12 +98,15 @@ pub fn part1(input: &str) -> usize {
         xmas_count += (&leading_diagonal == xmas) as usize;
         xmas_count += (&leading_diagonal == samx) as usize;
 
-        let trailing_diagonal = [
-            input[e - 3 * row_len],
-            input[e - 2 * row_len - 1],
-            input[e - 1 * row_len - 2],
-            input[e - 3],
-        ];
+        let trailing_diagonal = unsafe {
+            [
+                *input.get_unchecked(e - 3 * row_len),
+                *input.get_unchecked(e - 2 * row_len - 1),
+                *input.get_unchecked(e - 1 * row_len - 2),
+                *input.get_unchecked(e - 3),
+            ]
+        };
+
         // if e == 3 * row_len + 3 || e == input.len() - 1 {
         //     println!(
         //         "e: {:?}, diagonal: {:?}",
@@ -109,16 +127,19 @@ pub fn part2(input: &str) -> usize {
     let line_len = input.iter().take_while(|&&b| b != b'\n').count();
     let row_len = line_len + 1;
 
-    let lines = (input.len() + 1) / row_len;
-    let overhang = (input.len() + 1) % row_len;
-    debug_assert!(
-        overhang == 0 || overhang == 1,
-        "Not expecting a trailing fragment: line_len: {}, row_len: {}, lines: {}, overhang: {}",
-        line_len,
-        row_len,
-        lines,
-        overhang
-    );
+    #[cfg(debug_assertions)]
+    {
+        let lines = (input.len() + 1) / row_len;
+        let overhang = (input.len() + 1) % row_len;
+        debug_assert!(
+            overhang == 0 || overhang == 1,
+            "Not expecting a trailing fragment: line_len: {}, row_len: {}, lines: {}, overhang: {}",
+            line_len,
+            row_len,
+            lines,
+            overhang
+        );
+    }
 
     // This time, we're looking for all occurances of:
     //
@@ -136,13 +157,15 @@ pub fn part2(input: &str) -> usize {
     let up = b"SSAMM";
     let mut xmas_count = 0;
     for i in row_len + 1..(input.len() - row_len - 1) {
-        let patch = [
-            input[i - row_len - 1],
-            input[i - row_len + 1],
-            input[i],
-            input[i + row_len - 1],
-            input[i + row_len + 1],
-        ];
+        let patch = unsafe {
+            [
+                *input.get_unchecked(i - row_len - 1),
+                *input.get_unchecked(i - row_len + 1),
+                *input.get_unchecked(i),
+                *input.get_unchecked(i + row_len - 1),
+                *input.get_unchecked(i + row_len + 1),
+            ]
+        };
         // if i == row_len + 1 || i == input.len() - row_len - 1 {
         // println!("i: {:?}, patch: {:?}", i, std::str::from_utf8(&patch));
         // }
