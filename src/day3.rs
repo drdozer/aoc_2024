@@ -9,7 +9,7 @@ use nom::{
 use regex::Regex;
 
 #[aoc(day3, part1)]
-fn part1(input: &str) -> i32 {
+pub fn part1(input: &str) -> i32 {
     // We're looking for things like `mul(123,456)`.
     // This can be matched with a simple regex.
     // We have to escape elipses, which makes it a bit difficult to read.
@@ -78,7 +78,7 @@ impl EvalState {
 }
 
 #[aoc(day3, part2)]
-fn part2(input: &str) -> u32 {
+pub fn part2(input: &str) -> u32 {
     // There are now three different commands, as well as junk.
     // I considered using a complicated regex, but found it impossible to read.
     // So instead, I've built a small nom parser.

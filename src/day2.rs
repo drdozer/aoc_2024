@@ -14,18 +14,18 @@ fn parse_line(line: &str) -> Record {
 }
 
 #[aoc_generator(day2)]
-fn parse(input: &str) -> Records {
+pub fn parse(input: &str) -> Records {
     let records = input.lines().map(parse_line).collect::<Vec<_>>();
     Records(records)
 }
 
 #[aoc(day2, part1)]
-fn part1(records: &Records) -> usize {
+pub fn part1(records: &Records) -> usize {
     records.0.iter().filter(|r| is_safe(r)).count()
 }
 
 #[aoc(day2, part2)]
-fn part2(input: &Records) -> usize {
+pub fn part2(input: &Records) -> usize {
     input.0.iter().filter(|r| is_nearly_safe(r)).count()
 }
 
