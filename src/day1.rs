@@ -2,7 +2,7 @@ use aoc_runner_derive::{aoc, aoc_generator};
 use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
-struct Lists(Vec<u32>, Vec<u32>);
+pub struct Lists(Vec<u32>, Vec<u32>);
 
 #[aoc_generator(day1)]
 pub fn parse(input: &str) -> Lists {

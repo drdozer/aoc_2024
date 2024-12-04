@@ -1,7 +1,7 @@
 use aoc_runner_derive::{aoc, aoc_generator};
 
-struct Record(Vec<u32>);
-struct Records(Vec<Record>);
+pub struct Record(Vec<u32>);
+pub struct Records(Vec<Record>);
 
 // Scruffy parsing into a a vector of vectors of integers,
 // using a helper function.
