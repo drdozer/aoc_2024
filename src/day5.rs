@@ -20,6 +20,12 @@ impl From<u8> for PageNumber {
     }
 }
 
+impl Default for PageNumber {
+    fn default() -> Self {
+        Self(0)
+    }
+}
+
 // A set of pages.
 #[derive(Debug, Clone, Copy)]
 struct PageSet(u128);
@@ -35,6 +41,14 @@ impl PageSet {
 
     fn contains(&self, page: PageNumber) -> bool {
         (self.0 & (1 << page.0)) != 0
+    }
+
+    fn intersect(&self, other: &Self) -> Self {
+        Self(self.0 & other.0)
+    }
+
+    fn size(&self) -> usize {
+        self.0.count_ones() as usize
     }
 }
 
@@ -59,6 +73,47 @@ impl OrderingRules {
     fn is_in_order(&self, before: PageNumber, after: PageNumber) -> bool {
         let before_set = unsafe { &self.0.get_unchecked(before.0 as usize) };
         before_set.contains(after)
+    }
+}
+
+struct Vec32<T> {
+    data: [T; 32],
+    len: usize,
+}
+
+impl<T: Default + Copy> Vec32<T> {
+    fn new() -> Self {
+        Self {
+            data: [T::default(); 32],
+            len: 0,
+        }
+    }
+}
+
+impl<T> Vec32<T> {
+    unsafe fn clear(&mut self) {
+        self.len = 0;
+    }
+
+    unsafe fn push_unchecked(&mut self, value: T) {
+        *self.data.get_unchecked_mut(self.len) = value;
+        self.len += 1;
+    }
+
+    unsafe fn get_unchecked(&self, index: usize) -> &T {
+        &self.data.get_unchecked(index)
+    }
+
+    unsafe fn get_unchecked_mut(&mut self, index: usize) -> &mut T {
+        self.data.get_unchecked_mut(index)
+    }
+
+    fn iter(&self) -> impl Iterator<Item = &T> {
+        self.data.iter().take(self.len)
+    }
+
+    fn len(&self) -> usize {
+        self.len
     }
 }
 
@@ -108,12 +163,14 @@ pub fn part1(input: &str) -> usize {
     // * two-digit pages
     // * no empty lines
     // * always an odd number of pages
-    let mut pages = vec![];
     for line in lines {
+        // We allocate this on-stack vector within each loop.
+        // The optimizer can then choose to hoist it, or to unroll the loop.
+        let mut pages = Vec32::new();
+
         let line = line.as_bytes();
-        pages.clear();
         for i in (0..line.len()).step_by(3) {
-            pages.push(parse_page(line, i));
+            unsafe { pages.push_unchecked(parse_page(line, i)) };
         }
 
         let mut well_ordered = true;
@@ -130,101 +187,67 @@ pub fn part1(input: &str) -> usize {
     sum
 }
 
-fn quickselect_median(pages: &mut [PageNumber], rules: &OrderingRules) -> PageNumber {
-    let target_idx = pages.len() / 2;
-    quickselect(pages, 0, pages.len() - 1, target_idx, rules)
-}
-
-fn quickselect(
-    pages: &mut [PageNumber],
-    left: usize,
-    right: usize,
-    k: usize,
-    rules: &OrderingRules,
-) -> PageNumber {
-    if left == right {
-        return unsafe { *pages.get_unchecked(left) };
-    }
-
-    let pivot_idx = partition(pages, left, right, rules);
-
-    match k.cmp(&pivot_idx) {
-        std::cmp::Ordering::Equal => unsafe { *pages.get_unchecked(k) },
-        std::cmp::Ordering::Less => quickselect(pages, left, pivot_idx - 1, k, rules),
-        std::cmp::Ordering::Greater => quickselect(pages, pivot_idx + 1, right, k, rules),
-    }
-}
-
-fn partition(pages: &mut [PageNumber], left: usize, right: usize, rules: &OrderingRules) -> usize {
-    // Use the rightmost element as pivot
-    let pivot = unsafe { *pages.get_unchecked(right) };
-    let mut i = left;
-
-    for j in left..right {
-        let in_order = unsafe { rules.is_in_order(*pages.get_unchecked(j), pivot) };
-
-        // branchless swap using xor
-        unsafe {
-            let mask = -(in_order as i8) as u8;
-            let a = pages.get_unchecked(i);
-            let b = pages.get_unchecked(j);
-            let xor = (a.0 ^ b.0) & mask;
-            pages.get_unchecked_mut(i).0 ^= xor;
-            pages.get_unchecked_mut(j).0 ^= xor;
-        }
-
-        i += in_order as usize;
-    }
-    //pages.swap(i, right);
-    unsafe {
-        let tmp = *pages.get_unchecked(i);
-        *pages.get_unchecked_mut(i) = *pages.get_unchecked(right);
-        *pages.get_unchecked_mut(right) = tmp;
-    }
-
-    i
-}
-
 #[aoc(day5, part2)]
 pub fn part2(input: &str) -> usize {
-    // Most of this is the same code as part 1.
+    unsafe {
+        // Most of this is the same code as part 1.
 
-    let mut lines = input.lines();
-    let rules = parse_rules(&mut lines);
+        let mut lines = input.lines();
+        let rules = parse_rules(&mut lines);
 
-    let mut sum = 0;
+        let mut sum = 0;
 
-    let mut pages = vec![];
-    for line in lines {
-        let line = line.as_bytes();
-        pages.clear();
-        for i in (0..line.len()).step_by(3) {
-            pages.push(parse_page(line, i));
-        }
+        for line in lines {
+            // We allocate this on-stack vector within each loop.
+            // The optimizer can then choose to hoist it, or to unroll the loop.
+            let mut pages = Vec32::new();
+            let line = line.as_bytes();
+            for i in (0..line.len()).step_by(3) {
+                pages.push_unchecked(parse_page(line, i));
+            }
 
-        let mut well_ordered = true;
-        for i in 0..pages.len() - 1 {
-            well_ordered =
-                unsafe { rules.is_in_order(*pages.get_unchecked(i), *pages.get_unchecked(i + 1)) };
-            // Not sure about the wisdom of the early exit here.
-            if !well_ordered {
-                break;
+            let mut well_ordered = true;
+            for i in 0..pages.len() - 1 {
+                well_ordered = unsafe {
+                    rules.is_in_order(*pages.get_unchecked(i), *pages.get_unchecked(i + 1))
+                };
+                // Not sure about the wisdom of the early exit here.
+                if !well_ordered {
+                    break;
+                }
+            }
+
+            // Not sure if we should use an early continue to skip the cost of sorting.
+            if well_ordered {
+                continue;
+            }
+
+            // We have a badly ordered page list. We need the median element of the sorted list.
+            //
+            // We're going to take advantage of rules being a total order over the subset of pages in an upate.
+            // First, we make a set of only the pages in this update.
+            let mut all_pages = PageSet::empty();
+            for p in pages.iter() {
+                all_pages.insert(*p);
+            }
+
+            // Next, we're going to loop over all the pages.
+            // Because the restricted rules are a total order, then we can find the index of a page in
+            // the update by simply counting the number of pages in its rule set.
+            let mid = pages.len() / 2;
+            for i in 0..pages.len() {
+                let p = unsafe { *pages.get_unchecked(i) };
+                let gt_p = unsafe { rules.0.get_unchecked(p.0 as usize) };
+                let gt_count = gt_p.intersect(&all_pages).size();
+                if gt_count == mid {
+                    sum += p.0 as usize;
+                    break;
+                }
             }
         }
 
-        // Not sure if we should use an early continue to skip the cost of sorting.
-        if well_ordered {
-            continue;
-        }
-
-        // We have a badly ordered page list. The task is to sort it by the ordering rules.
-        //
-
-        let middle_page = quickselect_median(&mut pages, &rules);
-        sum += middle_page.0 as usize;
+        sum
     }
-
-    sum
 }
 
 #[cfg(test)]
