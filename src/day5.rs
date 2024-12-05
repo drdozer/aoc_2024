@@ -1,4 +1,4 @@
-use std::{cmp::Ordering, str::Lines};
+use std::str::Lines;
 
 use aoc_runner_derive::aoc;
 
@@ -77,8 +77,8 @@ impl OrderingRules {
 }
 
 struct Vec32<T> {
-    data: [T; 32],
     len: usize,
+    data: [T; 32],
 }
 
 impl<T: Default + Copy> Vec32<T> {
@@ -125,35 +125,42 @@ fn parse_page(bytes: &[u8], at: usize) -> PageNumber {
     PageNumber(tens * 10 + ones)
 }
 
-fn parse_rules(lines: &mut Lines<'_>) -> OrderingRules {
+fn parse_rules(input: &[u8]) -> (OrderingRules, usize) {
     // Parse out the ordering rules.
     // We are assuming that they are well-formed.
     // In real production code, we'd take the speed hit and validate the input.
     let mut rules = OrderingRules::default();
+    let mut pos = 0;
+
     loop {
-        let line = lines.next().unwrap();
-        if line.is_empty() {
-            // The ordering rules are terminated by an empty line.
+        if unsafe { *input.get_unchecked(pos) } == b'\n' {
             break;
         }
-        let line = line.as_bytes();
-        #[cfg(debug_assertions)]
-        {
-            assert!(line.len() == 5);
-            assert!(line[2] == b'|');
-        }
-        let before = parse_page(line, 0);
-        let after = parse_page(line, 3);
+        // Parse first number (2 digits)
+        let tens = unsafe { *input.get_unchecked(pos) } - b'0';
+        let ones = unsafe { *input.get_unchecked(pos + 1) } - b'0';
+        let before = PageNumber(tens * 10 + ones);
+
+        // Skip the pipe
+        debug_assert_eq!(unsafe { *input.get_unchecked(pos + 2) }, b'|');
+
+        // Parse second number (2 digits)
+        let tens = unsafe { *input.get_unchecked(pos + 3) } - b'0';
+        let ones = unsafe { *input.get_unchecked(pos + 4) } - b'0';
+        let after = PageNumber(tens * 10 + ones);
 
         rules.add_rule(before, after);
+
+        // Skip newline and move to next line
+        pos += 6;
     }
-    rules
+
+    (rules, pos + 1)
 }
 
 #[aoc(day5, part1)]
 pub fn part1(input: &str) -> usize {
-    let mut lines = input.lines();
-    let rules = parse_rules(&mut lines);
+    let (rules, start) = parse_rules(input.as_bytes());
 
     let mut sum = 0;
 
@@ -163,7 +170,7 @@ pub fn part1(input: &str) -> usize {
     // * two-digit pages
     // * no empty lines
     // * always an odd number of pages
-    for line in lines {
+    for line in input[start..].lines() {
         // We allocate this on-stack vector within each loop.
         // The optimizer can then choose to hoist it, or to unroll the loop.
         let mut pages = Vec32::new();
@@ -189,65 +196,55 @@ pub fn part1(input: &str) -> usize {
 
 #[aoc(day5, part2)]
 pub fn part2(input: &str) -> usize {
-    unsafe {
-        // Most of this is the same code as part 1.
+    let (rules, start) = parse_rules(input.as_bytes());
 
-        let mut lines = input.lines();
-        let rules = parse_rules(&mut lines);
+    let mut sum = 0;
 
-        let mut sum = 0;
-
-        for line in lines {
-            // We allocate this on-stack vector within each loop.
-            // The optimizer can then choose to hoist it, or to unroll the loop.
-            let mut pages = Vec32::new();
-            let line = line.as_bytes();
-            for i in (0..line.len()).step_by(3) {
-                pages.push_unchecked(parse_page(line, i));
-            }
-
-            let mut well_ordered = true;
-            for i in 0..pages.len() - 1 {
-                well_ordered = unsafe {
-                    rules.is_in_order(*pages.get_unchecked(i), *pages.get_unchecked(i + 1))
-                };
-                // Not sure about the wisdom of the early exit here.
-                if !well_ordered {
-                    break;
-                }
-            }
-
-            // Not sure if we should use an early continue to skip the cost of sorting.
-            if well_ordered {
-                continue;
-            }
-
-            // We have a badly ordered page list. We need the median element of the sorted list.
-            //
-            // We're going to take advantage of rules being a total order over the subset of pages in an upate.
-            // First, we make a set of only the pages in this update.
-            let mut all_pages = PageSet::empty();
-            for p in pages.iter() {
-                all_pages.insert(*p);
-            }
-
-            // Next, we're going to loop over all the pages.
-            // Because the restricted rules are a total order, then we can find the index of a page in
-            // the update by simply counting the number of pages in its rule set.
-            let mid = pages.len() / 2;
-            for i in 0..pages.len() {
-                let p = unsafe { *pages.get_unchecked(i) };
-                let gt_p = unsafe { rules.0.get_unchecked(p.0 as usize) };
-                let gt_count = gt_p.intersect(&all_pages).size();
-                if gt_count == mid {
-                    sum += p.0 as usize;
-                    break;
-                }
-            }
+    for line in input[start..].lines() {
+        // We allocate this on-stack vector within each loop.
+        // The optimizer can then choose to hoist it, or to unroll the loop.
+        let mut pages = Vec32::new();
+        let line = line.as_bytes();
+        for i in (0..line.len()).step_by(3) {
+            unsafe { pages.push_unchecked(parse_page(line, i)) };
         }
 
-        sum
+        let mut well_ordered = true;
+        for i in 0..pages.len() - 1 {
+            well_ordered &=
+                unsafe { rules.is_in_order(*pages.get_unchecked(i), *pages.get_unchecked(i + 1)) };
+        }
+
+        // Not sure if we should use an early continue to skip the cost of sorting.
+        if well_ordered {
+            continue;
+        }
+
+        // We have a badly ordered page list. We need the median element of the sorted list.
+        //
+        // We're going to take advantage of rules being a total order over the subset of pages in an upate.
+        // First, we make a set of only the pages in this update.
+        let mut all_pages = PageSet::empty();
+        for p in pages.iter() {
+            all_pages.insert(*p);
+        }
+
+        // Next, we're going to loop over all the pages.
+        // Because the restricted rules are a total order, then we can find the index of a page in
+        // the update by simply counting the number of pages in its rule set.
+        let mid = pages.len() / 2;
+        for i in 0..pages.len() {
+            let p = unsafe { *pages.get_unchecked(i) };
+            let gt_p = unsafe { rules.0.get_unchecked(p.0 as usize) };
+            let gt_count = gt_p.intersect(&all_pages).size();
+            if gt_count == mid {
+                sum += p.0 as usize;
+                break;
+            }
+        }
     }
+
+    sum
 }
 
 #[cfg(test)]
@@ -330,7 +327,7 @@ mod tests {
         // This test fails.
         // It is testing if the ordering rules are a full transtivie closure.
         let example = include_str!("../input/2024/day5.txt");
-        let rules = parse_rules(&mut example.lines());
+        let (rules, _) = parse_rules(example.as_bytes());
 
         for a in 10..=99 {
             for b in 10..=99 {
@@ -355,11 +352,10 @@ mod tests {
         //
         // It tests if the rules are a transitive closure for all example updates in the input data.
         let example = include_str!("../input/2024/day5.txt");
-        let mut lines = example.lines();
-        let rules = parse_rules(&mut example.lines());
+        let (rules, start) = parse_rules(example.as_bytes());
 
         let mut pages = vec![];
-        for line in lines {
+        for line in example[start..].lines() {
             let line = line.as_bytes();
             pages.clear();
             for i in (0..line.len()).step_by(3) {
@@ -387,11 +383,10 @@ mod tests {
         //
         // It tests if the rules are a transitive closure for all example updates in the input data that are badly ordered.
         let example = include_str!("../input/2024/day5.txt");
-        let mut lines = example.lines();
-        let rules = parse_rules(&mut example.lines());
+        let (rules, start) = parse_rules(example.as_bytes());
 
         let mut pages = vec![];
-        for line in lines {
+        for line in example[start..].lines() {
             if line.is_empty() {
                 continue;
             }
