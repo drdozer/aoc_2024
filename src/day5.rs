@@ -155,12 +155,53 @@ fn parse_rules(input: &[u8]) -> (OrderingRules, usize) {
         pos += 6;
     }
 
-    (rules, pos + 1)
+    (rules, pos + 1) // skip the separating newline
+}
+
+fn parse_page_list(input: &[u8], at: usize) -> (Vec32<PageNumber>, usize) {
+    let mut pages = Vec32::new();
+    let mut pos = at;
+
+    while pos < input.len() - 2 {
+        // println!("pos: {}", pos);
+        // println!("Parsing {:?}", std::str::from_utf8(&input[pos..pos + 3]));
+        let tens = unsafe { *input.get_unchecked(pos) } - b'0';
+        let ones = unsafe { *input.get_unchecked(pos + 1) } - b'0';
+        let sep = unsafe { *input.get_unchecked(pos + 2) };
+        let after = PageNumber(tens * 10 + ones);
+
+        unsafe {
+            pages.push_unchecked(after);
+        }
+
+        pos += 3;
+
+        if sep == b'\n' {
+            break;
+        }
+    }
+    // handle the special case of an input with a final line that's not newline-terminated
+    if pos == input.len() - 2 {
+        let tens = unsafe { *input.get_unchecked(pos) } - b'0';
+        let ones = unsafe { *input.get_unchecked(pos + 1) } - b'0';
+        let after = PageNumber(tens * 10 + ones);
+
+        unsafe {
+            pages.push_unchecked(after);
+        }
+        pos += 3;
+    }
+
+    (pages, pos)
 }
 
 #[aoc(day5, part1)]
 pub fn part1(input: &str) -> usize {
-    let (rules, start) = parse_rules(input.as_bytes());
+    let input = input.as_bytes();
+    let (rules, start) = parse_rules(input);
+
+    // println!("input length: {}", input.len());
+    // println!("parsed up to {}", start);
 
     let mut sum = 0;
 
@@ -170,15 +211,12 @@ pub fn part1(input: &str) -> usize {
     // * two-digit pages
     // * no empty lines
     // * always an odd number of pages
-    for line in input[start..].lines() {
-        // We allocate this on-stack vector within each loop.
-        // The optimizer can then choose to hoist it, or to unroll the loop.
-        let mut pages = Vec32::new();
-
-        let line = line.as_bytes();
-        for i in (0..line.len()).step_by(3) {
-            unsafe { pages.push_unchecked(parse_page(line, i)) };
-        }
+    // * ends with a newline
+    let mut pos = start;
+    while pos < input.len() {
+        // println!("pos: {}", pos);
+        let (pages, new_pos) = parse_page_list(input, pos);
+        pos = new_pos;
 
         let mut well_ordered = true;
         for i in 0..pages.len() - 1 {
@@ -196,18 +234,15 @@ pub fn part1(input: &str) -> usize {
 
 #[aoc(day5, part2)]
 pub fn part2(input: &str) -> usize {
-    let (rules, start) = parse_rules(input.as_bytes());
+    let input = input.as_bytes();
+    let (rules, start) = parse_rules(input);
 
     let mut sum = 0;
+    let mut pos = start;
 
-    for line in input[start..].lines() {
-        // We allocate this on-stack vector within each loop.
-        // The optimizer can then choose to hoist it, or to unroll the loop.
-        let mut pages = Vec32::new();
-        let line = line.as_bytes();
-        for i in (0..line.len()).step_by(3) {
-            unsafe { pages.push_unchecked(parse_page(line, i)) };
-        }
+    while pos < input.len() {
+        let (pages, new_pos) = parse_page_list(input, pos);
+        pos = new_pos;
 
         let mut well_ordered = true;
         for i in 0..pages.len() - 1 {
@@ -282,7 +317,8 @@ mod tests {
     75,29,13
     75,97,47,61,53
     61,13,29
-    97,13,75,29,47"
+    97,13,75,29,47
+    "
             };
         assert_eq!(part1(example), 143);
     }
@@ -317,7 +353,8 @@ mod tests {
         75,29,13
         75,97,47,61,53
         61,13,29
-        97,13,75,29,47"
+        97,13,75,29,47
+        "
             };
         assert_eq!(part2(example), 123);
     }
