@@ -57,6 +57,14 @@ pub fn part1(input: &str) -> usize {
         // }
         xmas_count += (&horizontal == xmas) as usize;
         xmas_count += (&horizontal == samx) as usize;
+        
+        // The compiler is recognising the data access pattern, and generating SIMD instructions
+        // to process 4 4-byte patterns at once.
+        // 
+        // It is also backing the 4 bytes into a single 32 bit register value, to compare in a single operation.
+        // I looked at rewriting the code to load a single byte into horizontal each time,
+        // pushing the new byte onto the end, but the compiler generated the same assembly.
+        // It was already doing these opimizations.
     }
 
     // All other searches involve pulling bytes from multiple lines.

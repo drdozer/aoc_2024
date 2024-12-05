@@ -6,7 +6,7 @@ use paste::paste;
 /// Get input for a single day
 macro_rules! get_day_input {
     ($day_num:literal) => {
-        include_str!(concat!("../inputs/day", $day_num, ".txt"))
+        include_str!(concat!("../input/2024/day", $day_num, ".txt"))
     };
 }
 

@@ -30,3 +30,7 @@ paste = "1.0.15"
 [[bench]]
 name = "bench_days"
 harness = false
+
+[[bench]]
+name = "bench_day4_load_align"
+harness = false
