@@ -90,6 +90,7 @@ impl<T: Default + Copy> Vec32<T> {
     }
 }
 
+#[allow(dead_code)]
 impl<T> Vec32<T> {
     unsafe fn clear(&mut self) {
         self.len = 0;
@@ -158,8 +159,9 @@ fn parse_rules(input: &[u8]) -> (OrderingRules, usize) {
     (rules, pos + 1) // skip the separating newline
 }
 
-fn parse_page_list(input: &[u8], at: usize) -> (Vec32<PageNumber>, usize) {
+fn parse_page_list(input: &[u8], at: usize) -> (Vec32<PageNumber>, PageSet, usize) {
     let mut pages = Vec32::new();
+    let mut page_set = PageSet::empty();
     let mut pos = at;
 
     while pos < input.len() - 2 {
@@ -169,6 +171,7 @@ fn parse_page_list(input: &[u8], at: usize) -> (Vec32<PageNumber>, usize) {
         let ones = unsafe { *input.get_unchecked(pos + 1) } - b'0';
         let sep = unsafe { *input.get_unchecked(pos + 2) };
         let after = PageNumber(tens * 10 + ones);
+        page_set.insert(after);
 
         unsafe {
             pages.push_unchecked(after);
@@ -192,7 +195,7 @@ fn parse_page_list(input: &[u8], at: usize) -> (Vec32<PageNumber>, usize) {
         pos += 3;
     }
 
-    (pages, pos)
+    (pages, page_set, pos)
 }
 
 #[aoc(day5, part1)]
@@ -215,7 +218,7 @@ pub fn part1(input: &str) -> usize {
     let mut pos = start;
     while pos < input.len() {
         // println!("pos: {}", pos);
-        let (pages, new_pos) = parse_page_list(input, pos);
+        let (pages, _, new_pos) = parse_page_list(input, pos);
         pos = new_pos;
 
         let mut well_ordered = true;
@@ -241,7 +244,7 @@ pub fn part2(input: &str) -> usize {
     let mut pos = start;
 
     while pos < input.len() {
-        let (pages, new_pos) = parse_page_list(input, pos);
+        let (pages, all_pages, new_pos) = parse_page_list(input, pos);
         pos = new_pos;
 
         let mut well_ordered = true;
@@ -255,18 +258,13 @@ pub fn part2(input: &str) -> usize {
             continue;
         }
 
-        // We have a badly ordered page list. We need the median element of the sorted list.
-        //
-        // We're going to take advantage of rules being a total order over the subset of pages in an upate.
-        // First, we make a set of only the pages in this update.
-        let mut all_pages = PageSet::empty();
-        for p in pages.iter() {
-            all_pages.insert(*p);
-        }
-
-        // Next, we're going to loop over all the pages.
-        // Because the restricted rules are a total order, then we can find the index of a page in
-        // the update by simply counting the number of pages in its rule set.
+        // If we intersect the pages in this update with the rules, we get a total order.
+        // This means that when we count the number of pages that are after a page,
+        // this is exactly its position from the end of the list.
+        // That is, the last page has zero following pages, the second-to-last page has one following page, etc.
+        // So to find the median, we just need to loop over pages, and find the one that has the median number of pages following it.
+        // This avoids an off-by-one error due to that last page having zero followers.
+        // In effect, the rules table is a constant-time lookup of the page update position.
         let mid = pages.len() / 2;
         for i in 0..pages.len() {
             let p = unsafe { *pages.get_unchecked(i) };
@@ -359,7 +357,8 @@ mod tests {
         assert_eq!(part2(example), 123);
     }
 
-    // #[test]
+    #[ignore]
+    #[test]
     fn ordering_rules_transitive() {
         // This test fails.
         // It is testing if the ordering rules are a full transtivie closure.
