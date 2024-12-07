@@ -57,6 +57,42 @@ const COLUMN_BYTES: usize = 9;
 type RowBitset = PackedBitset<PrimitiveBitset<BitsetRep>, COLUMN_BYTES>;
 const UNUSED_BITS: usize = std::mem::size_of::<u16>() * COLUMN_BYTES * 8 - MAP_SIZE;
 
+#[derive(PartialEq, Eq)]
+enum Direction {
+    Up,
+    Down,
+    Left,
+    Right,
+}
+
+impl Default for Direction {
+    fn default() -> Self {
+        Direction::Right
+    }
+}
+
+impl Direction {
+    fn turn_right(&mut self) {
+        *self = match self {
+            Direction::Up => Direction::Right,
+            Direction::Right => Direction::Down,
+            Direction::Down => Direction::Left,
+            Direction::Left => Direction::Up,
+        }
+    }
+}
+
+impl std::fmt::Debug for Direction {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Direction::Up => write!(f, "^"),
+            Direction::Right => write!(f, ">"),
+            Direction::Down => write!(f, "v"),
+            Direction::Left => write!(f, "<"),
+        }
+    }
+}
+
 #[derive(Clone, Copy)]
 pub struct LabMapRow(
     // I've benchmarked performance for various bitset implementations, and on my machine, this is an optimal trade-off.
@@ -97,6 +133,44 @@ impl LabMap {
     fn obstacle_at(&self, row: usize, col: usize) -> bool {
         unsafe { self.rows.get_unchecked(row).is_obstacle(col) }
     }
+
+    fn next_obstacle(
+        &self,
+        row: usize,
+        col: usize,
+        direction: Direction,
+    ) -> Option<(usize, usize)> {
+        match direction {
+            Direction::Up => (0..row)
+                .rev()
+                .take_while(|&r| !self.obstacle_at(r, col))
+                .map(|r| (r, col))
+                .next(),
+            Direction::Right => unsafe {
+                self.rows
+                    .get_unchecked(row)
+                    .0
+                    .into_iter()
+                    .filter(|&c| c > col)
+                    .map(|c| (row, c))
+                    .next()
+            },
+            Direction::Down => (row + 1..MAP_SIZE)
+                .take_while(|&r| !self.obstacle_at(r, col))
+                .map(|r| (r, col))
+                .next(),
+            Direction::Left => unsafe {
+                self.rows
+                    .get_unchecked(row)
+                    .0
+                    .into_iter()
+                    .rev()
+                    .filter(|&c| c < col)
+                    .map(|c| (row, c))
+                    .next()
+            },
+        }
+    }
 }
 
 #[derive(Clone, Copy, Default)]
@@ -130,7 +204,7 @@ impl Visited {
     }
 }
 
-struct Guard {
+pub struct Guard {
     pos: (usize, usize),
     direction: Direction,
 }
@@ -141,43 +215,7 @@ pub struct WalkState {
     guard: Guard,
 }
 
-#[derive(PartialEq, Eq)]
-enum Direction {
-    Up,
-    Down,
-    Left,
-    Right,
-}
-
-impl Default for Direction {
-    fn default() -> Self {
-        Direction::Right
-    }
-}
-
-impl Direction {
-    fn turn_right(&mut self) {
-        *self = match self {
-            Direction::Up => Direction::Right,
-            Direction::Right => Direction::Down,
-            Direction::Down => Direction::Left,
-            Direction::Left => Direction::Up,
-        }
-    }
-}
-
-impl std::fmt::Debug for Direction {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Direction::Up => write!(f, "^"),
-            Direction::Right => write!(f, ">"),
-            Direction::Down => write!(f, "v"),
-            Direction::Left => write!(f, "<"),
-        }
-    }
-}
-
-pub fn parse_lab_map(input: &str) -> WalkState {
+pub fn parse_lab_map(input: &str) -> (LabMap, Guard) {
     let input = input.as_bytes();
 
     // let mut rows = unsafe { std::mem::MaybeUninit::<[LabMapRow; 130]>::uninit().assume_init() };
@@ -222,15 +260,9 @@ pub fn parse_lab_map(input: &str) -> WalkState {
     }
 
     let map = LabMap { rows };
-    let mut visited = Visited::default();
     let guard = Guard { pos, direction };
-    visited.visit(pos.0, pos.1);
 
-    WalkState {
-        map,
-        visited,
-        guard,
-    }
+    (map, guard)
 }
 
 #[aoc(day6, part1)]
@@ -244,23 +276,27 @@ pub fn part1(input: &str) -> usize {
 // but we still need to fill in all the visited bits, unless I'm missing someting obvious.
 // This is becuase paths intersect, so we need to not double-count where our path crosses itself.
 pub fn part1_with_size(input: &str, map_size: usize) -> usize {
-    let mut walk_state = parse_lab_map(input);
+    let (lab_map, mut guard) = parse_lab_map(input);
 
     // We've visited the staring position.
-    let mut visit_count = 1;
+    let mut visited = Visited::default();
+    let mut visit_count = 0;
     loop {
-        let (row, col) = walk_state.guard.pos;
-        match walk_state.guard.direction {
+        // We always mark the current position as visited.
+        let (row, col) = guard.pos;
+        visit_count += visited.visit(row, col) as usize;
+
+        // Then we move the guard in the direction she is facing.
+        match guard.direction {
             Direction::Up => {
                 if row == 0 {
                     break;
                 }
                 let new_row = row - 1;
-                if walk_state.map.obstacle_at(new_row, col) {
-                    walk_state.guard.direction.turn_right();
+                if lab_map.obstacle_at(new_row, col) {
+                    guard.direction.turn_right();
                 } else {
-                    walk_state.guard.pos.0 = new_row;
-                    visit_count += walk_state.visited.visit(new_row, col) as usize;
+                    guard.pos.0 = new_row;
                 }
             }
             Direction::Right => {
@@ -268,11 +304,10 @@ pub fn part1_with_size(input: &str, map_size: usize) -> usize {
                     break;
                 }
                 let new_col = col + 1;
-                if walk_state.map.obstacle_at(row, new_col) {
-                    walk_state.guard.direction.turn_right();
+                if lab_map.obstacle_at(row, new_col) {
+                    guard.direction.turn_right();
                 } else {
-                    walk_state.guard.pos.1 = new_col;
-                    visit_count += walk_state.visited.visit(row, new_col) as usize;
+                    guard.pos.1 = new_col;
                 }
             }
             Direction::Down => {
@@ -280,11 +315,10 @@ pub fn part1_with_size(input: &str, map_size: usize) -> usize {
                     break;
                 }
                 let new_row = row + 1;
-                if walk_state.map.obstacle_at(new_row, col) {
-                    walk_state.guard.direction.turn_right();
+                if lab_map.obstacle_at(new_row, col) {
+                    guard.direction.turn_right();
                 } else {
-                    walk_state.guard.pos.0 = new_row;
-                    visit_count += walk_state.visited.visit(new_row, col) as usize;
+                    guard.pos.0 = new_row;
                 }
             }
             Direction::Left => {
@@ -292,11 +326,10 @@ pub fn part1_with_size(input: &str, map_size: usize) -> usize {
                     break;
                 }
                 let new_col = col - 1;
-                if walk_state.map.obstacle_at(row, new_col) {
-                    walk_state.guard.direction.turn_right();
+                if lab_map.obstacle_at(row, new_col) {
+                    guard.direction.turn_right();
                 } else {
-                    walk_state.guard.pos.1 = new_col;
-                    visit_count += walk_state.visited.visit(row, new_col) as usize;
+                    guard.pos.1 = new_col;
                 }
             }
         }
@@ -305,118 +338,118 @@ pub fn part1_with_size(input: &str, map_size: usize) -> usize {
     visit_count
 }
 
-#[aoc(day6, part2)]
-pub fn part2(input: &str) -> usize {
-    part2_with_size(input, MAP_SIZE)
-}
+// #[aoc(day6, part2)]
+// pub fn part2(input: &str) -> usize {
+//     part2_with_size(input, MAP_SIZE)
+// }
 
-// We perform the same walk.
-// However, instead of counting where we've visited, we track candidate positions that would loop the path.
-// We then have to actually walk the path to see if we hit these candidates.
-// Potentially the horizontal movement could be optimized using bitwise operations.
-pub fn part2_with_size(input: &str, map_size: usize) -> usize {
-    let mut walk_state = parse_lab_map(input);
+// // We perform the same walk.
+// // However, instead of counting where we've visited, we track candidate positions that would loop the path.
+// // We then have to actually walk the path to see if we hit these candidates.
+// // Potentially the horizontal movement could be optimized using bitwise operations.
+// pub fn part2_with_size(input: &str, map_size: usize) -> usize {
+//     let mut walk_state = parse_lab_map(input);
 
-    // We've visited the staring position.
-    let mut obstruction_count = 0;
+//     // We've visited the staring position.
+//     let mut obstruction_count = 0;
 
-    // The next candidate obstruction that we're going to check if we visit.
-    let mut candidate_obstruction = (map_size, map_size);
+//     // The next candidate obstruction that we're going to check if we visit.
+//     let mut candidate_obstruction = (map_size, map_size);
 
-    // Array of past 4 obstructions.
-    // Because we always hit an obstruction from a defined direction, we can index this array by direction.
-    let mut obstructions = [(map_size + 1, map_size + 1); 4]; // initialized to be unreachable
+//     // Array of past 4 obstructions.
+//     // Because we always hit an obstruction from a defined direction, we can index this array by direction.
+//     let mut obstructions = [(map_size + 1, map_size + 1); 4]; // initialized to be unreachable
 
-    loop {
-        // if we've hit an obstruction, we found an obstruction
-        obstruction_count += (walk_state.guard.pos == candidate_obstruction) as usize;
+//     loop {
+//         // if we've hit an obstruction, we found an obstruction
+//         obstruction_count += (guard.pos == candidate_obstruction) as usize;
 
-        if walk_state.guard.pos == candidate_obstruction {
-            println!(
-                "Hit candidate {} at {:?}",
-                obstruction_count, candidate_obstruction
-            );
-        }
+//         if guard.pos == candidate_obstruction {
+//             println!(
+//                 "Hit candidate {} at {:?}",
+//                 obstruction_count, candidate_obstruction
+//             );
+//         }
 
-        let (row, col) = walk_state.guard.pos;
-        match walk_state.guard.direction {
-            Direction::Up => {
-                if row == 0 {
-                    break;
-                }
-                let new_row = row - 1;
-                if walk_state.map.obstacle_at(new_row, col) {
-                    obstructions[0] = (new_row, col);
-                    candidate_obstruction = (row, obstructions[2].1 + 1);
-                    println!(
-                        "Obstructions: {:?} {:?}",
-                        obstructions, walk_state.guard.direction
-                    );
-                    println!("Cew candidate: {:?}", candidate_obstruction);
-                    walk_state.guard.direction.turn_right();
-                } else {
-                    walk_state.guard.pos.0 = new_row;
-                }
-            }
-            Direction::Right => {
-                if col == map_size - 1 {
-                    break;
-                }
-                let new_col = col + 1;
-                if walk_state.map.obstacle_at(row, new_col) {
-                    obstructions[1] = (row, new_col);
-                    candidate_obstruction = (obstructions[3].0 + 1, col);
-                    println!(
-                        "Obstructions: {:?} {:?}",
-                        obstructions, walk_state.guard.direction
-                    );
-                    println!("Cew candidate: {:?}", candidate_obstruction);
-                    walk_state.guard.direction.turn_right();
-                } else {
-                    walk_state.guard.pos.1 = new_col;
-                }
-            }
-            Direction::Down => {
-                if row == map_size - 1 {
-                    break;
-                }
-                let new_row = row + 1;
-                if walk_state.map.obstacle_at(new_row, col) {
-                    obstructions[2] = (new_row, col);
-                    candidate_obstruction = (row, obstructions[0].1 - 1);
-                    println!(
-                        "Obstructions: {:?} {:?}",
-                        obstructions, walk_state.guard.direction
-                    );
-                    println!("Cew candidate: {:?}", candidate_obstruction);
-                    walk_state.guard.direction.turn_right();
-                } else {
-                    walk_state.guard.pos.0 = new_row;
-                }
-            }
-            Direction::Left => {
-                if col == 0 {
-                    break;
-                }
-                let new_col = col - 1;
-                if walk_state.map.obstacle_at(row, new_col) {
-                    obstructions[3] = (row, new_col);
-                    candidate_obstruction = (obstructions[1].0 - 1, col);
-                    println!(
-                        "Obstructions: {:?} {:?}",
-                        obstructions, walk_state.guard.direction
-                    );
-                    println!("Cew candidate: {:?}", candidate_obstruction);
-                    walk_state.guard.direction.turn_right();
-                } else {
-                    walk_state.guard.pos.1 = new_col;
-                }
-            }
-        }
-    }
+//         let (row, col) = walk_state.guard.pos;
+//         match walk_state.guard.direction {
+//             Direction::Up => {
+//                 if row == 0 {
+//                     break;
+//                 }
+//                 let new_row = row - 1;
+//                 if walk_state.map.obstacle_at(new_row, col) {
+//                     obstructions[0] = (new_row, col);
+//                     candidate_obstruction = (row, obstructions[2].1 + 1);
+//                     println!(
+//                         "Obstructions: {:?} {:?}",
+//                         obstructions, walk_state.guard.direction
+//                     );
+//                     println!("Cew candidate: {:?}", candidate_obstruction);
+//                     walk_state.guard.direction.turn_right();
+//                 } else {
+//                     walk_state.guard.pos.0 = new_row;
+//                 }
+//             }
+//             Direction::Right => {
+//                 if col == map_size - 1 {
+//                     break;
+//                 }
+//                 let new_col = col + 1;
+//                 if walk_state.map.obstacle_at(row, new_col) {
+//                     obstructions[1] = (row, new_col);
+//                     candidate_obstruction = (obstructions[3].0 + 1, col);
+//                     println!(
+//                         "Obstructions: {:?} {:?}",
+//                         obstructions, walk_state.guard.direction
+//                     );
+//                     println!("Cew candidate: {:?}", candidate_obstruction);
+//                     walk_state.guard.direction.turn_right();
+//                 } else {
+//                     walk_state.guard.pos.1 = new_col;
+//                 }
+//             }
+//             Direction::Down => {
+//                 if row == map_size - 1 {
+//                     break;
+//                 }
+//                 let new_row = row + 1;
+//                 if walk_state.map.obstacle_at(new_row, col) {
+//                     obstructions[2] = (new_row, col);
+//                     candidate_obstruction = (row, obstructions[0].1 - 1);
+//                     println!(
+//                         "Obstructions: {:?} {:?}",
+//                         obstructions, walk_state.guard.direction
+//                     );
+//                     println!("Cew candidate: {:?}", candidate_obstruction);
+//                     walk_state.guard.direction.turn_right();
+//                 } else {
+//                     walk_state.guard.pos.0 = new_row;
+//                 }
+//             }
+//             Direction::Left => {
+//                 if col == 0 {
+//                     break;
+//                 }
+//                 let new_col = col - 1;
+//                 if walk_state.map.obstacle_at(row, new_col) {
+//                     obstructions[3] = (row, new_col);
+//                     candidate_obstruction = (obstructions[1].0 - 1, col);
+//                     println!(
+//                         "Obstructions: {:?} {:?}",
+//                         obstructions, walk_state.guard.direction
+//                     );
+//                     println!("Cew candidate: {:?}", candidate_obstruction);
+//                     walk_state.guard.direction.turn_right();
+//                 } else {
+//                     walk_state.guard.pos.1 = new_col;
+//                 }
+//             }
+//         }
+//     }
 
-    obstruction_count
-}
+//     obstruction_count
+// }
 
 #[cfg(test)]
 mod tests {
@@ -440,11 +473,11 @@ mod tests {
             "
         };
 
-        let walk = parse_lab_map(input);
-        assert!(walk.map.obstacle_at(0, 4));
-        assert!(walk.map.obstacle_at(1, 9));
-        assert_eq!(walk.guard.pos, (6, 4));
-        assert_eq!(walk.guard.direction, Direction::Up);
+        let (lab_map, guard) = parse_lab_map(input);
+        assert!(lab_map.obstacle_at(0, 4));
+        assert!(lab_map.obstacle_at(1, 9));
+        assert_eq!(guard.pos, (6, 4));
+        assert_eq!(guard.direction, Direction::Up);
     }
 
     #[test]
@@ -474,23 +507,23 @@ mod tests {
         assert_eq!(answer, 5162);
     }
 
-    #[test]
-    fn test_part2_example() {
-        let input = indoc! {
-            "....#.....
-            .........#
-            ..........
-            ..#.......
-            .......#..
-            ..........
-            .#..^.....
-            ........#.
-            #.........
-            ......#...
-            "
-        };
+    // #[test]
+    // fn test_part2_example() {
+    //     let input = indoc! {
+    //         "....#.....
+    //         .........#
+    //         ..........
+    //         ..#.......
+    //         .......#..
+    //         ..........
+    //         .#..^.....
+    //         ........#.
+    //         #.........
+    //         ......#...
+    //         "
+    //     };
 
-        let obstructions = part2_with_size(input, 10);
-        assert_eq!(obstructions, 6);
-    }
+    //     let obstructions = part2_with_size(input, 10);
+    //     assert_eq!(obstructions, 6);
+    // }
 }
