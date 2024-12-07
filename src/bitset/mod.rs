@@ -27,6 +27,7 @@ pub trait BitwiseOps:
 
 /// A bitset that can not change the number of bits it contains.
 pub trait FixedSizeBitset {
+    /// The fixed number of bits in this bitset.
     fn fixed_capacity() -> usize;
 }
 
@@ -148,6 +149,15 @@ mod tests {
         assert_eq!(iter.next(), None);
     }
 
+    pub fn test_empty_iterator_back<BS: BitsetOps>()
+    where
+        for<'a> &'a BS: IntoIterator<IntoIter: DoubleEndedIterator<Item = usize>>,
+    {
+        let empty = BS::empty();
+        let mut iter = empty.into_iter();
+        assert_eq!(iter.next_back(), None);
+    }
+
     pub fn test_set_one_bit_iterator<BS: BitsetOps>()
     where
         for<'a> &'a BS: IntoIterator<Item = usize>,
@@ -158,6 +168,19 @@ mod tests {
             let mut iter = bitset.into_iter();
             assert_eq!(iter.next(), Some(i));
             assert_eq!(iter.next(), None);
+        }
+    }
+
+    pub fn test_one_bit_iterator_back<BS: BitsetOps>()
+    where
+        for<'a> &'a BS: IntoIterator<IntoIter: DoubleEndedIterator<Item = usize>>,
+    {
+        for i in 0..BS::empty().size() {
+            let mut bitset = BS::empty();
+            bitset.set(i);
+            let mut iter = bitset.into_iter();
+            assert_eq!(iter.next_back(), Some(i));
+            assert_eq!(iter.next_back(), None);
         }
     }
 
@@ -174,6 +197,23 @@ mod tests {
                 assert_eq!(iter.next(), Some(i));
                 assert_eq!(iter.next(), Some(j));
                 assert_eq!(iter.next(), None);
+            }
+        }
+    }
+    
+    pub fn test_set_two_bit_iterator_back<BS: BitsetOps>()
+    where
+        for<'a> &'a BS: IntoIterator<IntoIter: DoubleEndedIterator<Item = usize>>,
+    {
+        for i in 0..BS::empty().size() {
+            for j in i + 1..BS::empty().size() {
+                let mut bitset = BS::empty();
+                bitset.set(i);
+                bitset.set(j);
+                let mut iter = bitset.into_iter();
+                assert_eq!(iter.next_back(), Some(j));
+                assert_eq!(iter.next_back(), Some(i));
+                assert_eq!(iter.next_back(), None);
             }
         }
     }

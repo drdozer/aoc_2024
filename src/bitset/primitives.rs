@@ -130,6 +130,29 @@ impl<U: PrimInt + WrappingSub + BitAndAssign + One> Iterator for PrimitiveBitset
     }
 }
 
+impl<U: PrimInt + WrappingSub + BitAndAssign + One> DoubleEndedIterator
+    for PrimitiveBitsetIterator<U>
+{
+    fn next_back(&mut self) -> Option<Self::Item> {
+        if self.bits == U::zero() {
+            return None;
+        }
+
+        // Get the number of leading zeros
+        let leading_zeros = self.bits.leading_zeros() as usize;
+
+        // Calculate the position of the highest set bit
+        let value = PrimitiveBitset::<U>::fixed_capacity() - 1 - leading_zeros;
+
+        // Clear the highest bit
+        // We can do this by creating a mask with all bits set except the highest set bit
+        let mask = (U::one() << value).wrapping_sub(&U::one());
+        self.bits &= mask;
+
+        Some(value)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::super::tests::*;
@@ -361,6 +384,31 @@ mod tests {
     }
 
     #[test]
+    fn test_empty_iterator_back_u8_bitset() {
+        test_empty_iterator_back::<PrimitiveBitset<u8>>();
+    }
+
+    #[test]
+    fn test_empty_iterator_back_u16_bitset() {
+        test_empty_iterator_back::<PrimitiveBitset<u16>>();
+    }
+
+    #[test]
+    fn test_empty_iterator_back_u32_bitset() {
+        test_empty_iterator_back::<PrimitiveBitset<u32>>();
+    }
+
+    #[test]
+    fn test_empty_iterator_back_u64_bitset() {
+        test_empty_iterator_back::<PrimitiveBitset<u64>>();
+    }
+
+    #[test]
+    fn test_empty_iterator_back_u128_bitset() {
+        test_empty_iterator_back::<PrimitiveBitset<u128>>();
+    }
+
+    #[test]
     fn test_set_one_bit_iterator_u8_bitset() {
         test_set_one_bit_iterator::<PrimitiveBitset<u8>>();
     }
@@ -383,6 +431,31 @@ mod tests {
     #[test]
     fn test_set_one_bit_iterator_u128_bitset() {
         test_set_one_bit_iterator::<PrimitiveBitset<u128>>();
+    }
+    
+    #[test]
+    fn test_one_bit_iterator_back_u8_bitset() {
+        test_one_bit_iterator_back::<PrimitiveBitset<u8>>();
+    }   
+    
+    #[test]
+    fn test_one_bit_iterator_back_u16_bitset() {
+        test_one_bit_iterator_back::<PrimitiveBitset<u16>>();
+    }
+    
+    #[test]
+    fn test_one_bit_iterator_back_u32_bitset() {
+        test_one_bit_iterator_back::<PrimitiveBitset<u32>>();
+    }
+    
+    #[test]
+    fn test_one_bit_iterator_back_u64_bitset() {
+        test_one_bit_iterator_back::<PrimitiveBitset<u64>>();
+    }
+    
+    #[test]
+    fn test_one_bit_iterator_back_u128_bitset() {
+        test_one_bit_iterator_back::<PrimitiveBitset<u128>>();
     }
 
     #[test]
@@ -408,5 +481,30 @@ mod tests {
     #[test]
     fn test_set_two_bit_iterator_u128_bitset() {
         test_set_two_bit_iterator::<PrimitiveBitset<u128>>();
+    }
+    
+    #[test]
+    fn test_two_bit_iterator_back_u8_bitset() {
+        test_set_two_bit_iterator_back::<PrimitiveBitset<u8>>();
+    }
+    
+    #[test]
+    fn test_two_bit_iterator_back_u16_bitset() {
+        test_set_two_bit_iterator_back::<PrimitiveBitset<u16>>();
+    }
+    
+    #[test]
+    fn test_two_bit_iterator_back_u32_bitset() {
+        test_set_two_bit_iterator_back::<PrimitiveBitset<u32>>();
+    }
+    
+    #[test]
+    fn test_two_bit_iterator_back_u64_bitset() {
+        test_set_two_bit_iterator_back::<PrimitiveBitset<u64>>();
+    }
+    
+    #[test]
+    fn test_two_bit_iterator_back_u128_bitset() {
+        test_set_two_bit_iterator_back::<PrimitiveBitset<u128>>();
     }
 }

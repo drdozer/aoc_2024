@@ -134,19 +134,19 @@ impl<P: FixedSizeBitset + BitsetOps + Copy, const N: usize> Default for PackedBi
 
 impl<P: FixedSizeBitset, const N: usize> IntoIterator for &PackedBitset<P, N>
 where
-    for<'a> &'a P: IntoIterator<Item = usize>,
+    for<'a> &'a P: IntoIterator<IntoIter: DoubleEndedIterator<Item = usize>>,
 {
     // It is fairly easy to express the iterator logic as an iterator chain.
     // However, this gives rise to a vile type signature.
     // We wrap it behind a newtype to hide the types.
     // Lastly, we use `impl Iterator` in `IntoIter` to prevent the vile type being visible.
     //
-    type IntoIter = PackedBitsetIterator<impl Iterator<Item = usize>>;
+    type IntoIter = PackedBitsetIterator<impl DoubleEndedIterator<Item = usize>>;
     type Item = usize;
 
     fn into_iter(self) -> Self::IntoIter {
         PackedBitsetIterator(self.0.iter().enumerate().flat_map(|(i, p)| {
-            let i = (i * P::fixed_capacity());
+            let i = i * P::fixed_capacity();
             p.into_iter().map(move |b| i + b)
         }))
     }
@@ -159,6 +159,12 @@ impl<I: Iterator<Item = usize>> Iterator for PackedBitsetIterator<I> {
     type Item = usize;
     fn next(&mut self) -> Option<Self::Item> {
         self.0.next()
+    }
+}
+
+impl<I: DoubleEndedIterator<Item = usize>> DoubleEndedIterator for PackedBitsetIterator<I> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.0.next_back()
     }
 }
 
@@ -396,6 +402,31 @@ mod tests {
     }
 
     #[test]
+    fn test_empty_iterator_back_packed_u8_bitset() {
+        test_empty_iterator_back::<PackedBitset<PrimitiveBitset<u8>, TEST_PACKED_SIZE>>();
+    }
+
+    #[test]
+    fn test_empty_iterator_back_packed_u16_bitset() {
+        test_empty_iterator_back::<PackedBitset<PrimitiveBitset<u16>, TEST_PACKED_SIZE>>();
+    }
+
+    #[test]
+    fn test_empty_iterator_back_packed_u32_bitset() {
+        test_empty_iterator_back::<PackedBitset<PrimitiveBitset<u32>, TEST_PACKED_SIZE>>();
+    }
+
+    #[test]
+    fn test_empty_iterator_back_packed_u64_bitset() {
+        test_empty_iterator_back::<PackedBitset<PrimitiveBitset<u64>, TEST_PACKED_SIZE>>();
+    }
+
+    #[test]
+    fn test_empty_iterator_back_packed_u128_bitset() {
+        test_empty_iterator_back::<PackedBitset<PrimitiveBitset<u128>, TEST_PACKED_SIZE>>();
+    }
+
+    #[test]
     fn test_set_one_bit_iterator_packed_u8_bitset() {
         test_set_one_bit_iterator::<PackedBitset<PrimitiveBitset<u8>, TEST_PACKED_SIZE>>();
     }
@@ -421,6 +452,31 @@ mod tests {
     }
 
     #[test]
+    fn test_one_bit_iterator_back_packed_u8_bitset() {
+        test_one_bit_iterator_back::<PackedBitset<PrimitiveBitset<u8>, TEST_PACKED_SIZE>>();
+    }
+
+    #[test]
+    fn test_one_bit_iterator_back_packed_u16_bitset() {
+        test_one_bit_iterator_back::<PackedBitset<PrimitiveBitset<u16>, TEST_PACKED_SIZE>>();
+    }
+
+    #[test]
+    fn test_one_bit_iterator_back_packed_u32_bitset() {
+        test_one_bit_iterator_back::<PackedBitset<PrimitiveBitset<u32>, TEST_PACKED_SIZE>>();
+    }
+
+    #[test]
+    fn test_one_bit_iterator_back_packed_u64_bitset() {
+        test_one_bit_iterator_back::<PackedBitset<PrimitiveBitset<u64>, TEST_PACKED_SIZE>>();
+    }
+
+    #[test]
+    fn test_one_bit_iterator_back_packed_u128_bitset() {
+        test_one_bit_iterator_back::<PackedBitset<PrimitiveBitset<u128>, TEST_PACKED_SIZE>>();
+    }
+
+    #[test]
     fn test_set_two_bit_iterator_packed_u8_bitset() {
         test_set_two_bit_iterator::<PackedBitset<PrimitiveBitset<u8>, TEST_PACKED_SIZE>>();
     }
@@ -443,5 +499,30 @@ mod tests {
     #[test]
     fn test_set_two_bit_iterator_packed_u128_bitset() {
         test_set_two_bit_iterator::<PackedBitset<PrimitiveBitset<u128>, TEST_PACKED_SIZE>>();
+    }
+
+    #[test]
+    fn test_two_bit_iterator_back_packed_u8_bitset() {
+        test_set_two_bit_iterator_back::<PackedBitset<PrimitiveBitset<u8>, TEST_PACKED_SIZE>>();
+    }
+
+    #[test]
+    fn test_two_bit_iterator_back_packed_u16_bitset() {
+        test_set_two_bit_iterator_back::<PackedBitset<PrimitiveBitset<u16>, TEST_PACKED_SIZE>>();
+    }
+
+    #[test]
+    fn test_two_bit_iterator_back_packed_u32_bitset() {
+        test_set_two_bit_iterator_back::<PackedBitset<PrimitiveBitset<u32>, TEST_PACKED_SIZE>>();
+    }
+
+    #[test]
+    fn test_two_bit_iterator_back_packed_u64_bitset() {
+        test_set_two_bit_iterator_back::<PackedBitset<PrimitiveBitset<u64>, TEST_PACKED_SIZE>>();
+    }
+
+    #[test]
+    fn test_two_bit_iterator_back_packed_u128_bitset() {
+        test_set_two_bit_iterator_back::<PackedBitset<PrimitiveBitset<u128>, TEST_PACKED_SIZE>>();
     }
 }
