@@ -1,3 +1,5 @@
+use std::ops::Bound;
+
 ///- Bitsets represented as an array of fixed-sized bitsets.
 use super::*;
 
@@ -69,16 +71,132 @@ impl<P: FixedSizeBitset + BitsetOps + Copy, const N: usize> BitsetOps for Packed
         Self([P::empty(); N])
     }
 
+    fn full() -> Self {
+        Self([P::full(); N])
+    }
+
     fn set(&mut self, index: usize) {
         let element_index = self.element_index(index);
         let bit_index = self.bit_index(index);
         self.0[element_index].set(bit_index);
     }
 
+    fn set_range<R: RangeBounds<usize>>(&mut self, range: R) {
+        let start = match range.start_bound() {
+            Bound::Included(i) => *i,
+            Bound::Excluded(i) => *i + 1,
+            Bound::Unbounded => 0,
+        };
+        let end = match range.end_bound() {
+            Bound::Included(i) => *i + 1,
+            Bound::Excluded(i) => *i,
+            Bound::Unbounded => self.size(),
+        };
+
+        let mut start_element_index = self.element_index(start);
+        let mut end_element_index = self.element_index(end);
+        let start_bit_index = self.bit_index(start);
+        let end_bit_index = self.bit_index(end);
+
+        // If the entire edit is within a single element, we can pass that on.
+        if start_element_index == end_element_index {
+            unsafe {
+                self.0
+                    .get_unchecked_mut(start_element_index)
+                    .set_range(start_bit_index..end_bit_index);
+            }
+        } else {
+            // The update covers multiple elements.
+
+            if start_bit_index > 0 {
+                // The edit fell within the first element, so handle the starting fragment.
+                unsafe {
+                    self.0
+                        .get_unchecked_mut(start_element_index)
+                        .set_range(start_bit_index..);
+                }
+                start_element_index += 1;
+            }
+
+            if end_bit_index < Self::fixed_capacity() {
+                // The edit fell within the last element, so handle the ending fragment.
+                unsafe {
+                    self.0
+                        .get_unchecked_mut(end_element_index)
+                        .set_range(..end_bit_index);
+                }
+                end_element_index -= 1;
+            }
+
+            // Everyting from the start to end is now an entry that needs to be fully set.
+            for i in start_element_index..=end_element_index {
+                unsafe {
+                    *self.0.get_unchecked_mut(i) = P::full();
+                }
+            }
+        }
+    }
+
     fn unset(&mut self, index: usize) {
         let element_index = self.element_index(index);
         let bit_index = self.bit_index(index);
         self.0[element_index].unset(bit_index);
+    }
+    
+    fn unset_range<R: RangeBounds<usize>>(&mut self, range: R) {
+        let start = match range.start_bound() {
+            Bound::Included(i) => *i,
+            Bound::Excluded(i) => *i + 1,
+            Bound::Unbounded => 0,
+        };
+        let end = match range.end_bound() {
+            Bound::Included(i) => *i + 1,
+            Bound::Excluded(i) => *i,
+            Bound::Unbounded => self.size(),
+        };
+        
+        let mut start_element_index = self.element_index(start);
+        let mut end_element_index = self.element_index(end);
+        let start_bit_index = self.bit_index(start);
+        let end_bit_index = self.bit_index(end);
+        
+        // If the entire edit is within a single element, we can pass that on.
+        if start_element_index == end_element_index {
+            unsafe {
+                self.0
+                    .get_unchecked_mut(start_element_index)
+                    .unset_range(start_bit_index..end_bit_index);
+            }
+        } else {
+            // The update covers multiple elements.
+            
+            if start_bit_index > 0 {
+                // The edit fell within the first element, so handle the starting fragment.
+                unsafe {
+                    self.0
+                        .get_unchecked_mut(start_element_index)
+                        .unset_range(start_bit_index..);
+                }
+                start_element_index += 1;
+            }
+            
+            if end_bit_index < Self::fixed_capacity() {
+                // The edit fell within the last element, so handle the ending fragment.
+                unsafe {
+                    self.0
+                        .get_unchecked_mut(end_element_index)
+                        .unset_range(..end_bit_index);
+                }
+                end_element_index -= 1;
+            }
+            
+            // Everyting from the start to end is now an entry that needs to be fully unset.
+            for i in start_element_index..=end_element_index {
+                unsafe {
+                    *self.0.get_unchecked_mut(i) = P::empty();
+                }
+            }
+        }
     }
 
     fn get(&self, index: usize) -> bool {
@@ -87,7 +205,7 @@ impl<P: FixedSizeBitset + BitsetOps + Copy, const N: usize> BitsetOps for Packed
         self.0[element_index].get(bit_index)
     }
 
-    fn count(&self) -> u32 {
+    fn count(&self) -> usize {
         let mut count = 0;
         for i in 0..N {
             count += self.0[i].count();

@@ -1,4 +1,4 @@
-use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign};
+use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, RangeBounds};
 
 pub mod packed;
 pub mod primitives;
@@ -6,10 +6,13 @@ pub mod primitives;
 /// The fundamental bitset operations.
 pub trait BitsetOps {
     fn empty() -> Self;
+    fn full() -> Self;
     fn set(&mut self, index: usize);
+    fn set_range<R: RangeBounds<usize>>(&mut self, range: R);
     fn unset(&mut self, index: usize);
+    fn unset_range<R: RangeBounds<usize>>(&mut self, range: R);
     fn get(&self, index: usize) -> bool;
-    fn count(&self) -> u32;
+    fn count(&self) -> usize;
     fn size(&self) -> usize;
 }
 
@@ -56,6 +59,18 @@ mod tests {
         }
     }
 
+    pub fn test_full<BS: BitsetOps>() {
+        let full = BS::full();
+        assert_eq!(
+            full.count(),
+            full.size(),
+            "full bitset should have count equal to size"
+        );
+        for i in 0..full.size() {
+            assert!(full.get(i), "full bitset should have all bits set");
+        }
+    }
+
     pub fn test_set_get<BS: BitsetOps>() {
         for i in 0..BS::empty().size() {
             let mut bitset = BS::empty();
@@ -63,6 +78,16 @@ mod tests {
             assert!(bitset.get(i), "bitset should have bit i set");
             assert_eq!(bitset.count(), 1, "bitset should have count 1");
         }
+    }
+
+    pub fn test_set_range<BS: BitsetOps>() {
+        let mut bitset = BS::empty();
+        bitset.set_range(0..bitset.size());
+        assert_eq!(bitset.count(), bitset.size());
+
+        let mut bitset = BS::empty();
+        bitset.set_range(2..5);
+        assert_eq!(bitset.count(), 3);
     }
 
     pub fn test_set_unset_get<BS: BitsetOps>() {
@@ -73,6 +98,32 @@ mod tests {
             assert!(!bitset.get(i), "bitset should not have bit {} unset", i);
             assert_eq!(bitset.count(), 0, "bitset should have count {}", i);
         }
+    }
+
+    pub fn test_unset_range<BS: BitsetOps + std::fmt::Debug>() {
+        // The full bitset range set and unset
+        let mut bitset = BS::empty();
+        bitset.set_range(0..bitset.size());
+        bitset.unset_range(0..bitset.size());
+        assert_eq!(bitset.count(), 0);
+
+        // Set some and unset some
+        let mut bitset = BS::empty();
+        bitset.set_range(1..bitset.size() - 1);
+        assert_eq!(
+            bitset.count(),
+            bitset.size() - 2,
+            "bitset should have count {} in {:?}",
+            bitset.size() - 1,
+            bitset
+        );
+        bitset.unset_range(2..bitset.size() - 2);
+        assert_eq!(
+            bitset.count(),
+            2,
+            "bitset should have count 2 in {:?}",
+            bitset
+        );
     }
 
     pub fn test_set_all<BS: BitsetOps>() {
@@ -200,7 +251,7 @@ mod tests {
             }
         }
     }
-    
+
     pub fn test_set_two_bit_iterator_back<BS: BitsetOps>()
     where
         for<'a> &'a BS: IntoIterator<IntoIter: DoubleEndedIterator<Item = usize>>,

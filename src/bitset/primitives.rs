@@ -1,5 +1,6 @@
 use super::*;
 use num::{traits::WrappingSub, One, PrimInt, Unsigned};
+use std::fmt::Binary;
 use std::iter::IntoIterator;
 
 ///- Bitset implementations using a single unsigned integer.
@@ -7,11 +8,18 @@ use std::iter::IntoIterator;
 ///- The implementations assume that you will use all the bits in the underlying integer.
 ///- They can be composed into bitsets with other behaviours, or used directly.
 use std::mem::size_of;
+use std::ops::Bound;
 
 /// A bitset implementation that uses a single unsigned integer, and contains one element per bit.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub struct PrimitiveBitset<U> {
     bits: U,
+}
+
+impl<U: Binary> std::fmt::Debug for PrimitiveBitset<U> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "PrimitiveBitset({:#b})", self.bits)
+    }
 }
 
 impl<U> FixedSizeBitset for PrimitiveBitset<U> {
@@ -62,20 +70,64 @@ impl<U: Unsigned + PrimInt> BitsetOps for PrimitiveBitset<U> {
         Self { bits: U::zero() }
     }
 
+    fn full() -> Self {
+        Self {
+            bits: U::max_value(),
+        }
+    }
+
     fn set(&mut self, index: usize) {
         self.bits = self.bits | U::one() << index;
+    }
+
+    fn set_range<R: RangeBounds<usize>>(&mut self, range: R) {
+        let start = match range.start_bound() {
+            Bound::Included(i) => *i,
+            Bound::Excluded(i) => *i + 1,
+            Bound::Unbounded => 0,
+        };
+        let end = match range.end_bound() {
+            Bound::Included(i) => *i + 1,
+            Bound::Excluded(i) => *i,
+            Bound::Unbounded => self.size(),
+        };
+        if end >= self.size() {
+            self.bits = self.bits | (!U::zero() << start)
+        } else {
+            self.bits = self.bits | (U::one() << end) - (U::one() << start);
+        }
     }
 
     fn unset(&mut self, index: usize) {
         self.bits = self.bits & !U::one() << index;
     }
 
+    fn unset_range<R: RangeBounds<usize>>(&mut self, range: R) {
+        let start = match range.start_bound() {
+            Bound::Included(i) => *i,
+            Bound::Excluded(i) => *i + 1,
+            Bound::Unbounded => 0,
+        };
+        let end = match range.end_bound() {
+            Bound::Included(i) => *i + 1,
+            Bound::Excluded(i) => *i,
+            Bound::Unbounded => self.size(),
+        };
+        if end >= self.size() {
+            self.bits = self.bits & !(!U::zero() << start)
+        } else {
+            let end_mask = U::one() << end;
+            let start_mask = U::one() << start;
+            self.bits = self.bits & !(end_mask - start_mask);
+        }
+    }
+
     fn get(&self, index: usize) -> bool {
         self.bits & U::one() << index != U::zero()
     }
 
-    fn count(&self) -> u32 {
-        self.bits.count_ones()
+    fn count(&self) -> usize {
+        self.bits.count_ones() as usize
     }
 
     fn size(&self) -> usize {
@@ -184,6 +236,31 @@ mod tests {
     }
 
     #[test]
+    fn test_full_u8_bitset() {
+        test_full::<PrimitiveBitset<u8>>();
+    }
+
+    #[test]
+    fn test_full_u16_bitset() {
+        test_full::<PrimitiveBitset<u16>>();
+    }
+
+    #[test]
+    fn test_full_u32_bitset() {
+        test_full::<PrimitiveBitset<u32>>();
+    }
+
+    #[test]
+    fn test_full_u64_bitset() {
+        test_full::<PrimitiveBitset<u64>>();
+    }
+
+    #[test]
+    fn test_full_u128_bitset() {
+        test_full::<PrimitiveBitset<u128>>();
+    }
+
+    #[test]
     fn test_set_get_u8_bitset() {
         test_set_get::<PrimitiveBitset<u8>>();
     }
@@ -209,6 +286,31 @@ mod tests {
     }
 
     #[test]
+    fn test_set_range_u8_bitset() {
+        test_set_range::<PrimitiveBitset<u8>>();
+    }
+
+    #[test]
+    fn test_set_range_u16_bitset() {
+        test_set_range::<PrimitiveBitset<u16>>();
+    }
+
+    #[test]
+    fn test_set_range_u32_bitset() {
+        test_set_range::<PrimitiveBitset<u32>>();
+    }
+
+    #[test]
+    fn test_set_range_u64_bitset() {
+        test_set_range::<PrimitiveBitset<u64>>();
+    }
+
+    #[test]
+    fn test_set_range_u128_bitset() {
+        test_set_range::<PrimitiveBitset<u128>>();
+    }
+
+    #[test]
     fn test_set_unset_get_u8_bitset() {
         test_set_unset_get::<PrimitiveBitset<u8>>();
     }
@@ -231,6 +333,31 @@ mod tests {
     #[test]
     fn test_set_unset_get_u128_bitset() {
         test_set_unset_get::<PrimitiveBitset<u128>>();
+    }
+
+    #[test]
+    fn test_unset_range_u8_bitset() {
+        test_unset_range::<PrimitiveBitset<u8>>();
+    }
+
+    #[test]
+    fn test_unset_range_u16_bitset() {
+        test_unset_range::<PrimitiveBitset<u16>>();
+    }
+
+    #[test]
+    fn test_unset_range_u32_bitset() {
+        test_unset_range::<PrimitiveBitset<u32>>();
+    }
+
+    #[test]
+    fn test_unset_range_u64_bitset() {
+        test_unset_range::<PrimitiveBitset<u64>>();
+    }
+
+    #[test]
+    fn test_unset_range_u128_bitset() {
+        test_unset_range::<PrimitiveBitset<u128>>();
     }
 
     #[test]
@@ -432,27 +559,27 @@ mod tests {
     fn test_set_one_bit_iterator_u128_bitset() {
         test_set_one_bit_iterator::<PrimitiveBitset<u128>>();
     }
-    
+
     #[test]
     fn test_one_bit_iterator_back_u8_bitset() {
         test_one_bit_iterator_back::<PrimitiveBitset<u8>>();
-    }   
-    
+    }
+
     #[test]
     fn test_one_bit_iterator_back_u16_bitset() {
         test_one_bit_iterator_back::<PrimitiveBitset<u16>>();
     }
-    
+
     #[test]
     fn test_one_bit_iterator_back_u32_bitset() {
         test_one_bit_iterator_back::<PrimitiveBitset<u32>>();
     }
-    
+
     #[test]
     fn test_one_bit_iterator_back_u64_bitset() {
         test_one_bit_iterator_back::<PrimitiveBitset<u64>>();
     }
-    
+
     #[test]
     fn test_one_bit_iterator_back_u128_bitset() {
         test_one_bit_iterator_back::<PrimitiveBitset<u128>>();
@@ -482,27 +609,27 @@ mod tests {
     fn test_set_two_bit_iterator_u128_bitset() {
         test_set_two_bit_iterator::<PrimitiveBitset<u128>>();
     }
-    
+
     #[test]
     fn test_two_bit_iterator_back_u8_bitset() {
         test_set_two_bit_iterator_back::<PrimitiveBitset<u8>>();
     }
-    
+
     #[test]
     fn test_two_bit_iterator_back_u16_bitset() {
         test_set_two_bit_iterator_back::<PrimitiveBitset<u16>>();
     }
-    
+
     #[test]
     fn test_two_bit_iterator_back_u32_bitset() {
         test_set_two_bit_iterator_back::<PrimitiveBitset<u32>>();
     }
-    
+
     #[test]
     fn test_two_bit_iterator_back_u64_bitset() {
         test_set_two_bit_iterator_back::<PrimitiveBitset<u64>>();
     }
-    
+
     #[test]
     fn test_two_bit_iterator_back_u128_bitset() {
         test_set_two_bit_iterator_back::<PrimitiveBitset<u128>>();
