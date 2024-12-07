@@ -1,10 +1,8 @@
-use std::usize::MAX;
-
 use aoc_runner_derive::aoc;
 use packed::PackedBitset;
 use primitives::PrimitiveBitset;
 
-use crate::{bitset::*, stack_vec::StackVec};
+use crate::bitset::*;
 
 // In day 6, there's a map of a lab.
 //
