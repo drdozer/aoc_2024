@@ -1,6 +1,6 @@
-use std::str::Lines;
-
 use aoc_runner_derive::aoc;
+
+use crate::stack_vec::StackVec;
 
 // Page numbers in the day 5 problem are 2-digit numbers.
 // This fits into the lower 7 bits of a u8.
@@ -76,48 +76,6 @@ impl OrderingRules {
     }
 }
 
-struct Vec32<T> {
-    len: usize,
-    data: [T; 32],
-}
-
-impl<T: Default + Copy> Vec32<T> {
-    fn new() -> Self {
-        Self {
-            data: [T::default(); 32],
-            len: 0,
-        }
-    }
-}
-
-#[allow(dead_code)]
-impl<T> Vec32<T> {
-    unsafe fn clear(&mut self) {
-        self.len = 0;
-    }
-
-    unsafe fn push_unchecked(&mut self, value: T) {
-        *self.data.get_unchecked_mut(self.len) = value;
-        self.len += 1;
-    }
-
-    unsafe fn get_unchecked(&self, index: usize) -> &T {
-        &self.data.get_unchecked(index)
-    }
-
-    unsafe fn get_unchecked_mut(&mut self, index: usize) -> &mut T {
-        self.data.get_unchecked_mut(index)
-    }
-
-    fn iter(&self) -> impl Iterator<Item = &T> {
-        self.data.iter().take(self.len)
-    }
-
-    fn len(&self) -> usize {
-        self.len
-    }
-}
-
 // Parses out a page number from the two bytes starting at the given offsset.
 fn parse_page(bytes: &[u8], at: usize) -> PageNumber {
     let tens = unsafe { bytes.get_unchecked(at) } - b'0';
@@ -156,8 +114,11 @@ fn parse_rules(input: &[u8]) -> (OrderingRules, usize) {
         pos += 6;
     }
 
-    (rules, pos + 1) // skip the separating newline
+    // we need to skip the separating newline, so return pos + 1
+    (rules, pos + 1)
 }
+
+type Vec32<T> = StackVec<T, 32>;
 
 fn parse_page_list(input: &[u8], at: usize) -> (Vec32<PageNumber>, PageSet, usize) {
     let mut pages = Vec32::new();
