@@ -336,10 +336,6 @@ pub fn part1_with_size(input: &str, map_size: usize) -> usize {
     visit_count
 }
 
-#[aoc(day6, part2)]
-pub fn part2(input: &str) -> u64 {
-    todo!()
-}
 
 // #[aoc(day6, part2)]
 // pub fn part2(input: &str) -> usize {
