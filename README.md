@@ -12,6 +12,8 @@ It may be useful to learn from, if only to learn what not to do.
 
 ## Running
 
+The project builds against Nightly.
+
 To run the code, you need to have rust and cargo installed.
 You also need to install the codspeed aoc cli, by following the codspeed advent instructions.
 You can then run the code with the cli command:
