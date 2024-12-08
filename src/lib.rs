@@ -1,5 +1,4 @@
 #![feature(impl_trait_in_assoc_type)]
-#![feature(generic_const_exprs)]
 
 use aoc_runner;
 use aoc_runner_derive::aoc_lib;
