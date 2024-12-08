@@ -1,19 +1,29 @@
-pub struct StackVec<T, const N: usize> {
+use std::fmt::{Debug, Formatter};
+use std::slice::Iter;
+
+pub struct ArrayVec<T, const N: usize> {
     len: usize,
     data: [T; N],
 }
 
-impl<T: Default + Copy, const N: usize> StackVec<T, N> {
+impl<T: Default + Copy, const N: usize> ArrayVec<T, N> {
     pub fn new() -> Self {
         Self {
             data: [T::default(); N],
             len: 0,
         }
     }
+
+    pub fn zeros(len: usize) -> Self {
+        Self {
+            data: [T::default(); N],
+            len: len,
+        }
+    }
 }
 
 #[allow(dead_code)]
-impl<T, const N: usize> StackVec<T, N> {
+impl<T, const N: usize> ArrayVec<T, N> {
     pub unsafe fn clear(&mut self) {
         self.len = 0;
     }
@@ -31,11 +41,17 @@ impl<T, const N: usize> StackVec<T, N> {
         self.data.get_unchecked_mut(index)
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = &T> {
-        self.data.iter().take(self.len)
+    pub fn iter(&self) -> Iter<'_, T> {
+        self.data[..self.len()].iter()
     }
 
     pub fn len(&self) -> usize {
         self.len
+    }
+}
+
+impl<T: Debug, const N: usize> Debug for ArrayVec<T, N> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_list().entries(self.iter()).finish()
     }
 }

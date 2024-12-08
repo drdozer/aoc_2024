@@ -1,6 +1,6 @@
 use aoc_runner_derive::aoc;
 
-use crate::stack_vec::StackVec;
+use crate::stack_vec::ArrayVec;
 
 // Page numbers in the day 5 problem are 2-digit numbers.
 // This fits into the lower 7 bits of a u8.
@@ -118,7 +118,7 @@ fn parse_rules(input: &[u8]) -> (OrderingRules, usize) {
     (rules, pos + 1)
 }
 
-type Vec32<T> = StackVec<T, 32>;
+type Vec32<T> = ArrayVec<T, 32>;
 
 fn parse_page_list(input: &[u8], at: usize) -> (Vec32<PageNumber>, PageSet, usize) {
     let mut pages = Vec32::new();
