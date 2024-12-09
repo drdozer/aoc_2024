@@ -1,6 +1,7 @@
 use std::fmt::{Debug, Formatter};
 use std::slice::Iter;
 
+#[derive(Clone, Copy)]
 pub struct ArrayVec<T, const N: usize> {
     len: usize,
     data: [T; N],
@@ -48,10 +49,23 @@ impl<T, const N: usize> ArrayVec<T, N> {
     pub fn len(&self) -> usize {
         self.len
     }
+
+    pub fn as_slice(&self) -> &[T] {
+        &self.data[..self.len]
+    }
 }
 
 impl<T: Debug, const N: usize> Debug for ArrayVec<T, N> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_list().entries(self.iter()).finish()
+    }
+}
+
+impl<'a, T, const N: usize> IntoIterator for &'a ArrayVec<T, N> {
+    type Item = &'a T;
+    type IntoIter = core::slice::Iter<'a, T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.data[..self.len].iter()
     }
 }

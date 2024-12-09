@@ -7,7 +7,7 @@ pub mod primitives;
 pub trait BitsetOps {
     fn empty() -> Self;
     fn full() -> Self;
-    fn set(&mut self, index: usize);
+    fn set(&mut self, index: usize) -> bool;
     fn set_range<R: RangeBounds<usize>>(&mut self, range: R);
     fn unset(&mut self, index: usize);
     fn unset_range<R: RangeBounds<usize>>(&mut self, range: R);
@@ -17,7 +17,7 @@ pub trait BitsetOps {
 }
 
 pub trait BitsetOpsUnsafe {
-    unsafe fn set_unchecked(&mut self, index: usize);
+    unsafe fn set_unchecked(&mut self, index: usize) -> bool;
     unsafe fn unset_unchecked(&mut self, index: usize);
     unsafe fn get_unchecked(&self, index: usize) -> bool;
 }

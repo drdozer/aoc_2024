@@ -75,10 +75,10 @@ impl<P: FixedSizeBitset + BitsetOps + Copy, const N: usize> BitsetOps for Packed
         Self([P::full(); N])
     }
 
-    fn set(&mut self, index: usize) {
+    fn set(&mut self, index: usize) -> bool {
         let element_index = self.element_index(index);
         let bit_index = self.bit_index(index);
-        self.0[element_index].set(bit_index);
+        self.0[element_index].set(bit_index)
     }
 
     fn set_range<R: RangeBounds<usize>>(&mut self, range: R) {
@@ -142,7 +142,7 @@ impl<P: FixedSizeBitset + BitsetOps + Copy, const N: usize> BitsetOps for Packed
         let bit_index = self.bit_index(index);
         self.0[element_index].unset(bit_index);
     }
-    
+
     fn unset_range<R: RangeBounds<usize>>(&mut self, range: R) {
         let start = match range.start_bound() {
             Bound::Included(i) => *i,
@@ -154,12 +154,12 @@ impl<P: FixedSizeBitset + BitsetOps + Copy, const N: usize> BitsetOps for Packed
             Bound::Excluded(i) => *i,
             Bound::Unbounded => self.size(),
         };
-        
+
         let mut start_element_index = self.element_index(start);
         let mut end_element_index = self.element_index(end);
         let start_bit_index = self.bit_index(start);
         let end_bit_index = self.bit_index(end);
-        
+
         // If the entire edit is within a single element, we can pass that on.
         if start_element_index == end_element_index {
             unsafe {
@@ -169,7 +169,7 @@ impl<P: FixedSizeBitset + BitsetOps + Copy, const N: usize> BitsetOps for Packed
             }
         } else {
             // The update covers multiple elements.
-            
+
             if start_bit_index > 0 {
                 // The edit fell within the first element, so handle the starting fragment.
                 unsafe {
@@ -179,7 +179,7 @@ impl<P: FixedSizeBitset + BitsetOps + Copy, const N: usize> BitsetOps for Packed
                 }
                 start_element_index += 1;
             }
-            
+
             if end_bit_index < Self::fixed_capacity() {
                 // The edit fell within the last element, so handle the ending fragment.
                 unsafe {
@@ -189,7 +189,7 @@ impl<P: FixedSizeBitset + BitsetOps + Copy, const N: usize> BitsetOps for Packed
                 }
                 end_element_index -= 1;
             }
-            
+
             // Everyting from the start to end is now an entry that needs to be fully unset.
             for i in start_element_index..=end_element_index {
                 unsafe {
@@ -221,12 +221,12 @@ impl<P: FixedSizeBitset + BitsetOps + Copy, const N: usize> BitsetOps for Packed
 impl<P: FixedSizeBitset + BitsetOpsUnsafe + Copy, const N: usize> BitsetOpsUnsafe
     for PackedBitset<P, N>
 {
-    unsafe fn set_unchecked(&mut self, index: usize) {
+    unsafe fn set_unchecked(&mut self, index: usize) -> bool {
         let element_index = self.element_index(index);
         let bit_index = self.bit_index(index);
         self.0
             .get_unchecked_mut(element_index)
-            .set_unchecked(bit_index);
+            .set_unchecked(bit_index)
     }
 
     unsafe fn unset_unchecked(&mut self, index: usize) {

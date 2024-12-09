@@ -1,21 +1,459 @@
+use std::collections::{HashMap, HashSet};
+
 use aoc_runner_derive::aoc;
 
-// #[aoc(day8, part1)]
-// pub fn part1(input: &str) -> u64 {
-//     todo!()
-// }
+use crate::{bitset::*, stack_vec::ArrayVec};
 
-// #[aoc(day8, part2)]
-// pub fn part2(input: &str) -> u64 {
-//     todo!()
-// }
+const MAP_SIZE: usize = 50;
+const ANTENNA_TYPES: usize = 10 + 26 + 26;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PackedSkip {
+    pub skip: u8,
+    pub item: u8,
+}
+
+pub struct SkipParser<'a> {
+    remaining: std::slice::Iter<'a, u8>,
+    skip: u8,
+}
+
+impl<'a> Iterator for SkipParser<'a> {
+    type Item = PackedSkip;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        while let Some(c) = self.remaining.next() {
+            match *c {
+                b'.' => self.skip += 1,
+                b'\n' => {}
+                c => {
+                    let coord = PackedSkip {
+                        skip: self.skip,
+                        item: c,
+                    };
+                    self.skip = 1;
+                    return Some(coord);
+                }
+            }
+        }
+
+        None
+    }
+}
+
+pub fn parse_skip(input: &str) -> SkipParser {
+    SkipParser {
+        remaining: input.as_bytes().iter(),
+        skip: 0,
+    }
+}
+
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub struct RC {
+    pub row: i8,
+    pub col: i8,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PackedRC {
+    pub rc: RC,
+    pub antenna: u8,
+}
+
+pub struct RCParser<'a> {
+    remaining: std::slice::Iter<'a, u8>,
+    row: i8,
+    col: i8,
+}
+
+impl<'a> Iterator for RCParser<'a> {
+    type Item = PackedRC;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        while let Some(c) = self.remaining.next() {
+            match *c {
+                b'.' => self.col += 1,
+                b'\n' => {
+                    self.row += 1;
+                    self.col = 0;
+                }
+                c => {
+                    let coord = PackedRC {
+                        rc: RC {
+                            row: self.row,
+                            col: self.col,
+                        },
+                        antenna: c,
+                    };
+                    self.col += 1;
+                    return Some(coord);
+                }
+            }
+        }
+
+        None
+    }
+}
+
+pub fn parse_rc(input: &str) -> RCParser {
+    RCParser {
+        remaining: input.as_bytes().iter(),
+        row: 0,
+        col: 0,
+    }
+}
+
+// Benchmarks show:
+//
+// antenna_to_index_usize_early
+//                         time:   [70.878 ns 71.577 ns 72.352 ns]
+// Found 12 outliers among 100 measurements (12.00%)
+//   7 (7.00%) high mild
+//   5 (5.00%) high severe
+//
+// antenna_to_index_usize_mid
+//                         time:   [70.105 ns 71.529 ns 73.413 ns]
+// Found 5 outliers among 100 measurements (5.00%)
+//   3 (3.00%) high mild
+//   2 (2.00%) high severe
+//
+// antenna_to_index_usize_late
+//                         time:   [92.332 ns 92.987 ns 93.685 ns]
+// Found 6 outliers among 100 measurements (6.00%)
+//   3 (3.00%) high mild
+//   3 (3.00%) high severe
+//
+// So, it looks like early-casting of everything to usize from bytes is faster.
+//
+pub fn antenna_to_index_usize_early(antenna: u8) -> usize {
+    const Between_Z_a: usize = (b'a' - b'Z') as usize - 1;
+    const Between_9_A: usize = (b'A' - b'9') as usize - 1;
+    const At_0: usize = (b'0') as usize;
+
+    let antenna = antenna as usize;
+    let mut adjustment = At_0;
+    adjustment += (antenna >= b'a' as usize) as usize * Between_Z_a;
+    adjustment += (antenna >= b'A' as usize) as usize * Between_9_A;
+
+    antenna - adjustment
+}
+
+pub fn antenna_to_index_usize_mid(antenna: u8) -> usize {
+    const Between_Z_a: usize = (b'a' - b'Z') as usize - 1;
+    const Between_9_A: usize = (b'A' - b'9') as usize - 1;
+    const At_0: usize = (b'0') as usize;
+
+    let mut adjustment = At_0;
+    adjustment += (antenna >= b'a') as usize * Between_Z_a;
+    adjustment += (antenna >= b'A') as usize * Between_9_A;
+
+    antenna as usize - adjustment
+}
+
+pub fn antenna_to_index_usize_late(antenna: u8) -> usize {
+    const Between_Z_a: u8 = b'a' - b'Z' - 1;
+    const Between_9_A: u8 = b'A' - b'9' - 1;
+    const At_0: u8 = b'0';
+
+    let mut adjustment = At_0;
+    adjustment += (antenna >= b'a') as u8 * Between_Z_a;
+    adjustment += (antenna >= b'A') as u8 * Between_9_A;
+
+    (antenna - adjustment) as usize
+}
+
+pub fn usize_to_antenna(index: usize) -> u8 {
+    "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz".as_bytes()[index]
+}
+
+pub fn part1_solve(input: &str, size: usize) -> u64 {
+    debug_assert!(size <= MAP_SIZE);
+
+    // Some sanity checks on the input
+    #[cfg(debug_assertions)]
+    {
+        let mut count = HashMap::new();
+        for a in parse_rc(input) {
+            debug_assert!(
+                (b'0'..=b'9').contains(&a.antenna)
+                    || (b'A'..=b'Z').contains(&a.antenna)
+                    || (b'a'..=b'z').contains(&a.antenna),
+                "Antenna has unexpected type {:?}",
+                a.antenna as char
+            );
+            let c = count.entry(a.antenna).and_modify(|v| *v += 1).or_insert(1);
+            assert!(
+                *c <= 4,
+                "Not expecting more than 4 antennas of type {:?}",
+                a.antenna
+            );
+        }
+    }
+
+    // Parse the antennas input into a table indexed by antenna type.
+    // There are up to 4 antenna of each type, so we make room for exactly that.
+    let mut antennas: [ArrayVec<RC, 4>; ANTENNA_TYPES] = [ArrayVec::new(); ANTENNA_TYPES];
+
+    for a in parse_rc(input) {
+        debug_assert!(
+            (b'0'..=b'9').contains(&a.antenna)
+                || (b'A'..=b'Z').contains(&a.antenna)
+                || (b'a'..=b'z').contains(&a.antenna)
+        );
+
+        // First thing is to convert the antenna letters into an index 0..(10+26+26)
+        let antenna_index = antenna_to_index_usize_early(a.antenna);
+
+        // Then push each one into a list with all others of the same type.
+        debug_assert!(antenna_index < ANTENNA_TYPES);
+        debug_assert!(antennas[antenna_index].len() < 4);
+        debug_assert!(
+            a.antenna == (input.as_bytes()[(a.rc.row as usize) * (size + 1) + a.rc.col as usize]),
+            "Antenna `{}` at position ({}, {}) does not match input {}  `{}`",
+            a.antenna as char,
+            a.rc.row,
+            a.rc.col,
+            (a.rc.row as usize) * (size + 1) + a.rc.col as usize,
+            input.as_bytes()[(a.rc.row as usize) * (size + 1) + a.rc.col as usize] as char
+        );
+        unsafe {
+            antennas
+                .get_unchecked_mut(antenna_index as usize)
+                .push_unchecked(a.rc);
+        }
+    }
+
+    // For each antenna, calculate the antinodes.
+    let mut antinode_count = 0;
+    // We also need to keep track of which positions contain antinodes.
+    let mut antinodes: [U64Bitset; MAP_SIZE] = [U64Bitset::empty(); MAP_SIZE];
+    unsafe {
+        let size = size as i64;
+        for ans in antennas {
+            for i in 0..ans.len() {
+                let an_i = ans.get_unchecked(i);
+                for j in i + 1..ans.len() {
+                    let an_j = ans.get_unchecked(j);
+
+                    let (r1, c1) = (an_i.row as i64, an_i.col as i64);
+                    let (r2, c2) = (an_j.row as i64, an_j.col as i64);
+
+                    let (rd, cd) = (r2 - r1, c2 - c1);
+                    let (ra1, ra2) = (r1 - rd, r2 + rd);
+                    let (ca1, ca2) = (c1 - cd, c2 + cd);
+
+                    // Because of how we index, i is strictly before j in the input.
+                    // So we know that the row of i is always lteq the row of j.
+                    // This means that we only need check the lower bound for the first antinode and
+                    // the upper bound for the second antinode.
+                    if ra1 >= 0 && ca1 >= 0 && ca1 < size {
+                        let was_set = antinodes.get_unchecked_mut(ra1 as usize).set(ca1 as usize);
+
+                        antinode_count += !was_set as u64;
+                    }
+
+                    if ca2 >= 0 && ra2 < size && ca2 < size {
+                        let was_set = antinodes.get_unchecked_mut(ra2 as usize).set(ca2 as usize);
+                        antinode_count += !was_set as u64;
+                    }
+                }
+            }
+        }
+    }
+
+    antinode_count
+}
+
+#[aoc(day8, part1)]
+pub fn part1(input: &str) -> u64 {
+    part1_solve(input, MAP_SIZE)
+}
+
+#[aoc(day8, part2)]
+pub fn part2(input: &str) -> u64 {
+    0
+}
 
 #[cfg(test)]
 mod tests {
+    use std::f32::consts::PI;
+
     use super::*;
+    use indoc::indoc;
+
+    const EXAMPLE: &str = indoc! {
+       "............
+        ........0...
+        .....0......
+        .......0....
+        ....0.......
+        ......A.....
+        ............
+        ............
+        ........A...
+        .........A..
+        ............
+        ............
+        "
+    };
+
+    const EXAMPLE_ANTINODES: &str = indoc! {
+        "......#....#
+        ...#........
+        ....#.....#.
+        ..#.........
+        .........#..
+        .#....#.....
+        ...#........
+        #......#....
+        ............
+        ............
+        ..........#.
+        ..........#.
+        "
+    };
+
+    const DAY8_INPUT: &str = include_str!("../input/2024/day8.txt");
 
     #[test]
-    fn test_part1() {}
+    fn test_skip_parser_nowhitespace() {
+        let skip_list_with = parse_skip(EXAMPLE).collect::<Vec<_>>();
+        let skip_list_without = parse_skip(
+            EXAMPLE
+                .chars()
+                .filter(|c| !c.is_whitespace())
+                .collect::<String>()
+                .as_str(),
+        )
+        .collect::<Vec<_>>();
+
+        assert_eq!(skip_list_with, skip_list_without);
+    }
+
+    #[test]
+    fn test_skip_parser() {
+        let skip_list = parse_skip(EXAMPLE).collect::<Vec<_>>();
+        let expected_skip_list = vec![
+            PackedSkip {
+                skip: 20,
+                item: b'0',
+            },
+            PackedSkip {
+                skip: 9,
+                item: b'0',
+            },
+            PackedSkip {
+                skip: 14,
+                item: b'0',
+            },
+            PackedSkip {
+                skip: 9,
+                item: b'0',
+            },
+            PackedSkip {
+                skip: 14,
+                item: b'A',
+            },
+            PackedSkip {
+                skip: 6 + 12 + 12 + 8,
+                item: b'A',
+            },
+            PackedSkip {
+                skip: 13,
+                item: b'A',
+            },
+        ];
+
+        assert_eq!(skip_list, expected_skip_list);
+    }
+
+    #[test]
+    fn test_antenna_to_index_usize_early() {
+        assert_eq!(antenna_to_index_usize_early(b'0'), 0);
+        assert_eq!(antenna_to_index_usize_early(b'1'), 1);
+        assert_eq!(antenna_to_index_usize_early(b'2'), 2);
+        assert_eq!(antenna_to_index_usize_early(b'3'), 3);
+        assert_eq!(antenna_to_index_usize_early(b'4'), 4);
+        assert_eq!(antenna_to_index_usize_early(b'5'), 5);
+        assert_eq!(antenna_to_index_usize_early(b'6'), 6);
+        assert_eq!(antenna_to_index_usize_early(b'7'), 7);
+        assert_eq!(antenna_to_index_usize_early(b'8'), 8);
+        assert_eq!(antenna_to_index_usize_early(b'9'), 9);
+        assert_eq!(antenna_to_index_usize_early(b'A'), 10);
+        assert_eq!(antenna_to_index_usize_early(b'B'), 11);
+        assert_eq!(antenna_to_index_usize_early(b'C'), 12);
+        assert_eq!(antenna_to_index_usize_early(b'D'), 13);
+        assert_eq!(antenna_to_index_usize_early(b'E'), 14);
+        assert_eq!(antenna_to_index_usize_early(b'F'), 15);
+        assert_eq!(antenna_to_index_usize_early(b'G'), 16);
+        assert_eq!(antenna_to_index_usize_early(b'H'), 17);
+        assert_eq!(antenna_to_index_usize_early(b'I'), 18);
+        assert_eq!(antenna_to_index_usize_early(b'J'), 19);
+        assert_eq!(antenna_to_index_usize_early(b'K'), 20);
+        assert_eq!(antenna_to_index_usize_early(b'L'), 21);
+        assert_eq!(antenna_to_index_usize_early(b'M'), 22);
+        assert_eq!(antenna_to_index_usize_early(b'N'), 23);
+        assert_eq!(antenna_to_index_usize_early(b'O'), 24);
+        assert_eq!(antenna_to_index_usize_early(b'P'), 25);
+        assert_eq!(antenna_to_index_usize_early(b'Q'), 26);
+        assert_eq!(antenna_to_index_usize_early(b'R'), 27);
+        assert_eq!(antenna_to_index_usize_early(b'S'), 28);
+        assert_eq!(antenna_to_index_usize_early(b'T'), 29);
+        assert_eq!(antenna_to_index_usize_early(b'U'), 30);
+        assert_eq!(antenna_to_index_usize_early(b'V'), 31);
+        assert_eq!(antenna_to_index_usize_early(b'W'), 32);
+        assert_eq!(antenna_to_index_usize_early(b'X'), 33);
+        assert_eq!(antenna_to_index_usize_early(b'Y'), 34);
+        assert_eq!(antenna_to_index_usize_early(b'Z'), 35);
+    }
+
+    #[test]
+    fn test_rc_parser() {
+        let rc_list = parse_rc(EXAMPLE).collect::<Vec<_>>();
+        let expected_rc_list = vec![
+            PackedRC {
+                rc: RC { row: 1, col: 8 },
+                antenna: b'0',
+            },
+            PackedRC {
+                rc: RC { row: 2, col: 5 },
+                antenna: b'0',
+            },
+            PackedRC {
+                rc: RC { row: 3, col: 7 },
+                antenna: b'0',
+            },
+            PackedRC {
+                rc: RC { row: 4, col: 4 },
+                antenna: b'0',
+            },
+            PackedRC {
+                rc: RC { row: 5, col: 6 },
+                antenna: b'A',
+            },
+            PackedRC {
+                rc: RC { row: 8, col: 8 },
+                antenna: b'A',
+            },
+            PackedRC {
+                rc: RC { row: 9, col: 9 },
+                antenna: b'A',
+            },
+        ];
+
+        assert_eq!(rc_list, expected_rc_list);
+    }
+
+    #[test]
+    fn test_part1_example() {
+        let count = part1_solve(EXAMPLE, 12);
+        assert_eq!(count, 14);
+    }
+
+    #[test]
+    fn test_part1() {
+        assert_eq!(part1(DAY8_INPUT), 323);
+    }
 
     #[test]
     fn test_part2() {}
