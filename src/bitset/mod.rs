@@ -50,6 +50,21 @@ pub type PackedU128Bitset<const N: usize> = packed::PackedBitset<U128Bitset, N>;
 mod tests {
     use super::*;
 
+    #[macro_export]
+    macro_rules! generate_tests {
+        ($test_func:ident, $($type_name:ty),* $(,)?) => {
+            paste::paste! {
+                $(
+                    #[test]
+                    #[allow(non_snake_case)]
+                    fn [<$test_func _ $type_name>]() {
+                        $test_func::<$type_name>();
+                    }
+                )*
+            }
+        }
+    }
+
     pub fn test_empty<BS: BitsetOps>() {
         let empty = BS::empty();
         assert_eq!(empty.count(), 0, "empty bitset should have count 0");
