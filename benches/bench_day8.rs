@@ -80,6 +80,11 @@ fn bench_part1(c: &mut Criterion) {
             part1_solve_enumerated(input, MAP_SIZE)
         })
     });
+    c.bench_function("part 1 using enumerated2", |b| {
+        b.iter(|| {
+            part1_solve_enumerated(input, MAP_SIZE)
+        })
+    });
 }
 
 criterion_group!(benches, bench_parse_input, bench_antenna_to_index, bench_part1);

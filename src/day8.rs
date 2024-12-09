@@ -373,6 +373,9 @@ pub fn part2_solve_rc(input: &str, size: usize) -> u64 {
     antinode_count
 }
 
+// I thought that this implementation would be faster, but it is consistently slower than the _rc implementation.
+// Without profiling, I don't know why.
+// It must be something to do with memory access patterns, as as far as I can tell this does less calculation. 
 pub fn part1_solve_enumerated(input: &str, size: usize) -> u64 {
     debug_assert!(size <= MAP_SIZE);
     debug_assert!(size > 0);
@@ -423,11 +426,11 @@ pub fn part1_solve_enumerated(input: &str, size: usize) -> u64 {
                     //
                     // We can mod the positions with the row length (inclusive of newlines)
                     // For the j antinode, we need to account for if the antinode position would be pushed into the newline
-                    // which we do by adding one before the modulus.
-                    let ai_row = std::intrinsics::unchecked_rem(ai, row_byte_count);
-                    let pi_row = std::intrinsics::unchecked_rem(pi, row_byte_count);
-                    let pj_row = std::intrinsics::unchecked_rem(pj, row_byte_count);
-                    let aj_row = std::intrinsics::unchecked_rem(ai+1, row_byte_count);
+                    // which we do by adding one before the division.
+                    let ai_row = std::intrinsics::unchecked_div(ai, row_byte_count);
+                    let pi_row = std::intrinsics::unchecked_div(pi, row_byte_count);
+                    let pj_row = std::intrinsics::unchecked_div(pj, row_byte_count);
+                    let aj_row = std::intrinsics::unchecked_div(ai+1, row_byte_count);
                     let gap = pj_row - pi_row;
                     let ai_gap = pi_row - ai_row;
                     let aj_gap = aj_row - pj_row;
@@ -450,6 +453,90 @@ pub fn part1_solve_enumerated(input: &str, size: usize) -> u64 {
     antinode_count
 }
 
+// There's possibly a speedup here where we use an array of bitsets rather than a packed bitset for the antennas mask.
+// But nothing statistically significant.
+// So whatever makes this slower than the _rc version is a mystery to me.
+pub fn part1_solve_enumerated2(input: &str, size: usize) -> u64 {
+    debug_assert!(size <= MAP_SIZE);
+    debug_assert!(size > 0);
+
+    let mut antennas: [ArrayVec<i64, 4>; ANTENNA_TYPES] = [ArrayVec::new(); ANTENNA_TYPES];
+
+    // Loop over the input.
+    // We only want the radio antennas, and their offset into the input.
+    for (pos, c) in input.as_bytes().iter().enumerate().filter(|(_,&c)| c >= b'0') {
+        let pos = pos as i64;
+        debug_assert!(
+            (b'0'..=b'9').contains(c)
+                || (b'A'..=b'Z').contains(&c)
+                || (b'a'..=b'z').contains(&c)
+        );
+
+         // First thing is to convert the antenna letters into an index 0..(10+26+26)
+         let antenna_index = antenna_to_index_usize_early(*c);
+         unsafe {
+            antennas
+                .get_unchecked_mut(antenna_index)
+                .push_unchecked(pos);
+        }
+    }
+
+    let mut antinode_count = 0;
+    let mut antinodes: [U64Bitset; MAP_SIZE] = [U64Bitset::empty(); MAP_SIZE];
+
+    unsafe {
+        let size = size as i64;
+        let row_byte_count = size + 1;
+        for ans in antennas {
+            for i in 0..ans.len() {
+                let an_i = ans.get_unchecked(i);
+                for j in i+1..ans.len() {
+                    let an_j = ans.get_unchecked(j);
+
+                    // do the arithmetic to find the antinodes
+                    let pi = *an_i;
+                    let pj = *an_j;
+                    let dist = pj - pi;
+                    let ai = pi - dist;
+                    let aj = pj + dist;
+
+                    // however, we want to get rid of those that are outside the arena
+                    // there are two cases:
+                    // * top/bottom: ai < 0, aj >= size
+                    // * left/right: the number of rows between antinode and node isn't the same as between nodes
+                    //
+                    // We can mod the positions with the row length (inclusive of newlines)
+                    // For the j antinode, we need to account for if the antinode position would be pushed into the newline
+                    // which we do by adding one before the modulus.
+                    let ai_row = std::intrinsics::unchecked_div(ai, row_byte_count);
+                    let pi_row = std::intrinsics::unchecked_div(pi, row_byte_count);
+                    let pj_row = std::intrinsics::unchecked_div(pj, row_byte_count);
+                    let aj_row = std::intrinsics::unchecked_div(ai+1, row_byte_count);
+                    let gap = pj_row - pi_row;
+                    let ai_gap = pi_row - ai_row;
+                    let aj_gap = aj_row - pj_row;
+
+                    if ai >=0 && ai_gap == gap {
+                        let ai_col = std::intrinsics::unchecked_rem(ai, row_byte_count);
+                        let was_set = antinodes.get_unchecked_mut(ai_row as usize)
+                            .set_unchecked(ai_col as usize);
+                        antinode_count += was_set as u64;
+                    }
+
+                    if aj < size && aj_gap == gap {
+                        let aj_col = std::intrinsics::unchecked_rem(aj, row_byte_count);
+                        let was_set = antinodes.get_unchecked_mut(aj_row as usize)
+                            .set_unchecked(aj_col as usize);
+                        antinode_count += was_set as u64;
+                    }
+                }
+            }
+
+        }
+    }
+
+    antinode_count
+}
 
 
 #[aoc(day8, part1)]
