@@ -1,4 +1,5 @@
 use std::fmt::{Debug, Formatter};
+use std::mem::MaybeUninit;
 use std::slice::Iter;
 
 #[derive(Clone, Copy)]
@@ -10,7 +11,7 @@ pub struct ArrayVec<T, const N: usize> {
 impl<T: Default + Copy, const N: usize> ArrayVec<T, N> {
     pub fn new() -> Self {
         Self {
-            data: [T::default(); N],
+            data: unsafe { MaybeUninit::uninit().assume_init() },
             len: 0,
         }
     }

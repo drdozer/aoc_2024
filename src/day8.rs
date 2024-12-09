@@ -264,6 +264,114 @@ pub fn part1_solve(input: &str, size: usize) -> u64 {
     antinode_count
 }
 
+pub fn part2_solve(input: &str, size: usize) -> u64 {
+    debug_assert!(size <= MAP_SIZE);
+
+    // Some sanity checks on the input
+    #[cfg(debug_assertions)]
+    {
+        let mut count = HashMap::new();
+        for a in parse_rc(input) {
+            debug_assert!(
+                (b'0'..=b'9').contains(&a.antenna)
+                    || (b'A'..=b'Z').contains(&a.antenna)
+                    || (b'a'..=b'z').contains(&a.antenna),
+                "Antenna has unexpected type {:?}",
+                a.antenna as char
+            );
+            let c = count.entry(a.antenna).and_modify(|v| *v += 1).or_insert(1);
+            assert!(
+                *c <= 4,
+                "Not expecting more than 4 antennas of type {:?}",
+                a.antenna
+            );
+        }
+    }
+
+    // Parse the antennas input into a table indexed by antenna type.
+    // There are up to 4 antenna of each type, so we make room for exactly that.
+    let mut antennas: [ArrayVec<RC, 4>; ANTENNA_TYPES] = [ArrayVec::new(); ANTENNA_TYPES];
+
+    for a in parse_rc(input) {
+        debug_assert!(
+            (b'0'..=b'9').contains(&a.antenna)
+                || (b'A'..=b'Z').contains(&a.antenna)
+                || (b'a'..=b'z').contains(&a.antenna)
+        );
+
+        // First thing is to convert the antenna letters into an index 0..(10+26+26)
+        let antenna_index = antenna_to_index_usize_early(a.antenna);
+
+        // Then push each one into a list with all others of the same type.
+        debug_assert!(antenna_index < ANTENNA_TYPES);
+        debug_assert!(antennas[antenna_index].len() < 4);
+        debug_assert!(
+            a.antenna == (input.as_bytes()[(a.rc.row as usize) * (size + 1) + a.rc.col as usize]),
+            "Antenna `{}` at position ({}, {}) does not match input {}  `{}`",
+            a.antenna as char,
+            a.rc.row,
+            a.rc.col,
+            (a.rc.row as usize) * (size + 1) + a.rc.col as usize,
+            input.as_bytes()[(a.rc.row as usize) * (size + 1) + a.rc.col as usize] as char
+        );
+        unsafe {
+            antennas
+                .get_unchecked_mut(antenna_index as usize)
+                .push_unchecked(a.rc);
+        }
+    }
+
+    // For each antenna, calculate the antinodes.
+    let mut antinode_count = 0;
+    // We also need to keep track of which positions contain antinodes.
+    let mut antinodes: [U64Bitset; MAP_SIZE] = [U64Bitset::empty(); MAP_SIZE];
+    unsafe {
+        let size = size as i64;
+        for ans in antennas {
+            for i in 0..ans.len() {
+                let an_i = ans.get_unchecked(i);
+                for j in i + 1..ans.len() {
+                    let an_j = ans.get_unchecked(j);
+
+                    let (mut r1, mut c1) = (an_i.row as i64, an_i.col as i64);
+                    let (mut r2, mut c2) = (an_j.row as i64, an_j.col as i64);
+
+                    let (rd, cd) = (r2 - r1, c2 - c1);
+                    // let (ra1, ra2) = (r1 - rd, r2 + rd);
+                    // let (ca1, ca2) = (c1 - cd, c2 + cd);
+
+                    // this is the same as pt 1, except that we need to loop from r1,c1 by -rd,-cd
+                    // and from r2,c2 by rd,cd until we walk off the edge of the map.
+
+                    loop {
+                        let was_set = antinodes.get_unchecked_mut(r1 as usize).set(c1 as usize);
+                        antinode_count += !was_set as u64;
+
+                        r1 -= rd;
+                        c1 -= cd;
+                        if r1 < 0 || c1 < 0 || c1 >= size {
+                            break;
+                        }
+                    }
+
+                    loop {
+                        let was_set = antinodes.get_unchecked_mut(r2 as usize).set(c2 as usize);
+                        antinode_count += !was_set as u64;
+
+                        r2 += rd;
+                        c2 += cd;
+                        if r2 >= size || c2 >= size || c2 < 0 {
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    antinode_count
+}
+
 #[aoc(day8, part1)]
 pub fn part1(input: &str) -> u64 {
     part1_solve(input, MAP_SIZE)
@@ -271,7 +379,7 @@ pub fn part1(input: &str) -> u64 {
 
 #[aoc(day8, part2)]
 pub fn part2(input: &str) -> u64 {
-    0
+    part2_solve(input, MAP_SIZE)
 }
 
 #[cfg(test)]
@@ -456,5 +564,7 @@ mod tests {
     }
 
     #[test]
-    fn test_part2() {}
+    fn test_part2() {
+        assert_eq!(part2(DAY8_INPUT), 1077);
+    }
 }
