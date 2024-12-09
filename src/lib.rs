@@ -1,5 +1,6 @@
 #![feature(impl_trait_in_assoc_type)]
 #![feature(hash_set_entry)]
+#![feature(core_intrinsics)]
 
 use aoc_runner;
 use aoc_runner_derive::aoc_lib;
