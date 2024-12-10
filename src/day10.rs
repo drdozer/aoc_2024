@@ -1,8 +1,20 @@
+use std::collections::HashSet;
+
 use aoc_runner_derive::aoc;
 
 use crate::stack_vec::ArrayVec;
 
 const MAP_SIZE: usize = 59;
+
+#[aoc(day10, part1)]
+pub fn part1(input: &str) -> usize {
+    unsafe { solve_part1_pruning(input, MAP_SIZE) }
+}
+
+#[aoc(day10, part2)]
+pub fn part2(input: &str) -> usize {
+    unsafe { solve_part2(input, MAP_SIZE) }
+}
 
 // This is the faster implementation for me.
 // - 1.9155 µs
@@ -18,16 +30,6 @@ pub fn trailhead_iterator<'b>(input: &'b [u8]) -> impl Iterator<Item = usize> + 
         .enumerate()
         .filter(|(_, &c)| c == b'0')
         .map(|(i, _)| i)
-}
-
-#[aoc(day10, part1)]
-pub fn part1(input: &str) -> usize {
-    unsafe { solve_part1(input, MAP_SIZE) }
-}
-
-#[aoc(day10, part2)]
-pub fn part2(input: &str) -> usize {
-    unsafe { solve_part2(input, MAP_SIZE) }
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -120,6 +122,79 @@ pub unsafe fn solve_part1(input: &str, map_size: usize) -> usize {
                                             seen_heights.push_unchecked(new_pos);
                                             heights += 1;
                                         }
+                                    } else {
+                                        // println!("Let's walk on uphill");
+                                        stack.push_unchecked(StackFrame {
+                                            pos: new_pos,
+                                            current_dir: DirectionIter::default(),
+                                        });
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    heights
+}
+
+pub unsafe fn solve_part1_pruning(input: &str, map_size: usize) -> usize {
+    let input = input.as_bytes();
+    let input_len = input.len() as isize;
+    let mut heights = 0;
+    let bytes_width = (map_size + 1) as isize;
+
+    #[derive(Debug, Default, Clone, Copy)]
+    struct StackFrame {
+        pos: usize,
+        current_dir: DirectionIter,
+    }
+
+    let mut seen_places = HashSet::new();
+    for trailhead in trailhead_memchr(input) {
+        seen_places.clear();
+        let mut stack: ArrayVec<StackFrame, 10> = ArrayVec::new();
+        stack.push_unchecked(StackFrame {
+            pos: trailhead,
+            current_dir: DirectionIter::default(),
+        });
+
+        loop {
+            match stack.get_last_mut() {
+                None => {
+                    // we've exhausted everywhere that can be reached from this trailhead
+                    break;
+                }
+                Some(here) => {
+                    match here.current_dir.next() {
+                        None => {
+                            // nowhere else to search from here
+                            stack.pop();
+                        }
+                        Some(dir) => {
+                            let delta: isize = match dir {
+                                Direction::Up => -bytes_width,
+                                Direction::Right => 1,
+                                Direction::Down => bytes_width,
+                                Direction::Left => -1,
+                            };
+                            let new_pos = (here.pos as isize) + delta;
+                            if new_pos >= 0 // not off the beginning of the input
+                                && new_pos < input_len && !seen_places.insert(new_pos)
+                            // not off the end of the input
+                            {
+                                let new_pos = new_pos as usize;
+                                // We use saturating_sub here so that \n looks like 0 which is a safe value
+                                let height = { *input.get_unchecked(new_pos) }.saturating_sub(b'0');
+                                if (height as usize) == stack.len() {
+                                    // the correct (next) height
+
+                                    // println!("Was gently uphill");
+                                    if height == 9 {
+                                        heights += 1;
                                     } else {
                                         // println!("Let's walk on uphill");
                                         stack.push_unchecked(StackFrame {
@@ -352,6 +427,13 @@ mod tests {
 
     fn part1_test() {
         assert_eq!(part1(INPUT), PART1_SOLUTION);
+    }
+
+    fn part1_pruning_test() {
+        assert_eq!(
+            unsafe { solve_part1_pruning(INPUT, MAP_SIZE) },
+            PART1_SOLUTION
+        );
     }
 
     fn part2_test() {
