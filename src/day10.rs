@@ -139,6 +139,53 @@ pub unsafe fn solve_part1(input: &str, map_size: usize) -> usize {
     heights
 }
 
+pub unsafe fn solve_part2_recursive(input: &str, map_size: usize) -> usize {
+    let input = input.as_bytes();
+    let input_len = input.len() as isize;
+    let mut ratings = 0;
+    let bytes_width = (map_size + 1) as isize;
+
+    fn recursive_walk(
+        input: &[u8],
+        bytes_width: isize,
+        input_len: isize,
+        here: isize,
+        height: u8,
+    ) -> usize {
+        if height == b'9' {
+            1
+        } else {
+            DirectionIter::default()
+                .map(|dir| {
+                    let there = here
+                        + match dir {
+                            Direction::Up => -bytes_width,
+                            Direction::Right => 1,
+                            Direction::Down => bytes_width,
+                            Direction::Left => -1,
+                        };
+                    if there >= 0 // not off the beginning of the input
+                        && there < input_len
+                    {
+                        let height = unsafe { *input.get_unchecked(here as usize) };
+                        if height == b'9' {
+                            1
+                        } else {
+                            recursive_walk(input, bytes_width, input_len, there, height)
+                        }
+                    } else {
+                        0
+                    }
+                })
+                .sum()
+        }
+    }
+
+    trailhead_memchr(input)
+        .map(|trailhead| recursive_walk(input, bytes_width, input_len, trailhead as isize, b'0'))
+        .sum()
+}
+
 pub unsafe fn solve_part2(input: &str, map_size: usize) -> usize {
     let input = input.as_bytes();
     let input_len = input.len() as isize;
@@ -309,5 +356,12 @@ mod tests {
 
     fn part2_test() {
         assert_eq!(part2(INPUT), PART2_SOLUTION);
+    }
+
+    fn part2_recursive_test() {
+        assert_eq!(
+            unsafe { solve_part2_recursive(INPUT, MAP_SIZE) },
+            PART2_SOLUTION
+        );
     }
 }
