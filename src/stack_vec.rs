@@ -9,17 +9,28 @@ pub struct ArrayVec<T, const N: usize> {
 }
 
 impl<T: Default + Copy, const N: usize> ArrayVec<T, N> {
-    pub fn new() -> Self {
-        Self {
-            data: unsafe { MaybeUninit::uninit().assume_init() },
-            len: 0,
-        }
-    }
-
     pub fn zeros(len: usize) -> Self {
         Self {
             data: [T::default(); N],
             len: len,
+        }
+    }
+
+    pub fn pop(&mut self) -> Option<T> {
+        if self.len == 0 {
+            None
+        } else {
+            self.len -= 1;
+            unsafe { Some(*self.data.get_unchecked(self.len)) }
+        }
+    }
+}
+
+impl<T, const N: usize> ArrayVec<T, N> {
+    pub fn new() -> Self {
+        Self {
+            data: unsafe { MaybeUninit::uninit().assume_init() },
+            len: 0,
         }
     }
 }
@@ -43,6 +54,22 @@ impl<T, const N: usize> ArrayVec<T, N> {
         self.data.get_unchecked_mut(index)
     }
 
+    pub fn get_last(&self) -> Option<&T> {
+        if self.len == 0 {
+            None
+        } else {
+            unsafe { Some(self.data.get_unchecked(self.len - 1)) }
+        }
+    }
+
+    pub fn get_last_mut(&mut self) -> Option<&mut T> {
+        if self.len == 0 {
+            None
+        } else {
+            unsafe { Some(self.data.get_unchecked_mut(self.len - 1)) }
+        }
+    }
+
     pub fn iter(&self) -> Iter<'_, T> {
         self.data[..self.len()].iter()
     }
@@ -53,6 +80,12 @@ impl<T, const N: usize> ArrayVec<T, N> {
 
     pub fn as_slice(&self) -> &[T] {
         &self.data[..self.len]
+    }
+}
+
+impl<T: PartialEq, const N: usize> ArrayVec<T, N> {
+    pub fn contains(&self, value: &T) -> bool {
+        self.iter().any(|v| v == value)
     }
 }
 
