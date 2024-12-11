@@ -103,7 +103,7 @@ impl<U: Unsigned + PrimInt> BitsetOps for PrimitiveBitset<U> {
     }
 
     fn unset(&mut self, index: usize) {
-        self.bits = self.bits & !U::one() << index;
+        self.bits = self.bits & !(U::one() << index);
     }
 
     fn unset_range<R: RangeBounds<usize>>(&mut self, range: R) {
