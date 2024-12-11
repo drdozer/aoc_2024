@@ -29,6 +29,14 @@ impl<U> FixedSizeBitset for PrimitiveBitset<U> {
     }
 }
 
+impl<U: PrimInt> FullBitset for PrimitiveBitset<U> {
+    fn full() -> Self {
+        Self {
+            bits: U::max_value(),
+        }
+    }
+}
+
 impl<U: BitAnd<Output = U>> BitAnd for PrimitiveBitset<U> {
     type Output = Self;
 
@@ -66,15 +74,9 @@ impl<U: BitAnd<Output = U> + BitAndAssign + BitOr<Output = U> + BitOrAssign> Bit
 {
 }
 
-impl<U: Unsigned + PrimInt> BitsetOps for PrimitiveBitset<U> {
+impl<U: PrimInt> BitsetOps for PrimitiveBitset<U> {
     fn empty() -> Self {
         Self { bits: U::zero() }
-    }
-
-    fn full() -> Self {
-        Self {
-            bits: U::max_value(),
-        }
     }
 
     fn set(&mut self, index: usize) -> bool {
@@ -84,6 +86,20 @@ impl<U: Unsigned + PrimInt> BitsetOps for PrimitiveBitset<U> {
         !was_set
     }
 
+    fn unset(&mut self, index: usize) {
+        self.bits = self.bits & !(U::one() << index);
+    }
+
+    fn get(&self, index: usize) -> bool {
+        self.bits & U::one() << index != U::zero()
+    }
+
+    fn count(&self) -> usize {
+        self.bits.count_ones() as usize
+    }
+}
+
+impl<U: PrimInt> BitsetRangeOps for PrimitiveBitset<U> {
     fn set_range<R: RangeBounds<usize>>(&mut self, range: R) {
         let start = match range.start_bound() {
             Bound::Included(i) => *i,
@@ -93,17 +109,13 @@ impl<U: Unsigned + PrimInt> BitsetOps for PrimitiveBitset<U> {
         let end = match range.end_bound() {
             Bound::Included(i) => *i + 1,
             Bound::Excluded(i) => *i,
-            Bound::Unbounded => self.size(),
+            Bound::Unbounded => Self::fixed_capacity(),
         };
-        if end >= self.size() {
+        if end >= Self::fixed_capacity() {
             self.bits = self.bits | (!U::zero() << start)
         } else {
             self.bits = self.bits | (U::one() << end) - (U::one() << start);
         }
-    }
-
-    fn unset(&mut self, index: usize) {
-        self.bits = self.bits & !(U::one() << index);
     }
 
     fn unset_range<R: RangeBounds<usize>>(&mut self, range: R) {
@@ -115,27 +127,15 @@ impl<U: Unsigned + PrimInt> BitsetOps for PrimitiveBitset<U> {
         let end = match range.end_bound() {
             Bound::Included(i) => *i + 1,
             Bound::Excluded(i) => *i,
-            Bound::Unbounded => self.size(),
+            Bound::Unbounded => Self::fixed_capacity(),
         };
-        if end >= self.size() {
+        if end >= Self::fixed_capacity() {
             self.bits = self.bits & !(!U::zero() << start)
         } else {
             let end_mask = U::one() << end;
             let start_mask = U::one() << start;
             self.bits = self.bits & !(end_mask - start_mask);
         }
-    }
-
-    fn get(&self, index: usize) -> bool {
-        self.bits & U::one() << index != U::zero()
-    }
-
-    fn count(&self) -> usize {
-        self.bits.count_ones() as usize
-    }
-
-    fn size(&self) -> usize {
-        Self::fixed_capacity()
     }
 }
 

@@ -24,6 +24,12 @@ impl<P: FixedSizeBitset, const N: usize> FixedSizeBitset for PackedBitset<P, N> 
     }
 }
 
+impl<P: FullBitset + Copy, const N: usize> FullBitset for PackedBitset<P, N> {
+    fn full() -> Self {
+        Self([P::full(); N])
+    }
+}
+
 impl<P: BitAndAssign + Copy, const N: usize> BitAnd for PackedBitset<P, N> {
     type Output = Self;
 
@@ -71,16 +77,36 @@ impl<P: FixedSizeBitset + BitsetOps + Copy, const N: usize> BitsetOps for Packed
         Self([P::empty(); N])
     }
 
-    fn full() -> Self {
-        Self([P::full(); N])
-    }
-
     fn set(&mut self, index: usize) -> bool {
         let element_index = self.element_index(index);
         let bit_index = self.bit_index(index);
         self.0[element_index].set(bit_index)
     }
 
+    fn unset(&mut self, index: usize) {
+        let element_index = self.element_index(index);
+        let bit_index = self.bit_index(index);
+        self.0[element_index].unset(bit_index);
+    }
+
+    fn get(&self, index: usize) -> bool {
+        let element_index = self.element_index(index);
+        let bit_index = self.bit_index(index);
+        self.0[element_index].get(bit_index)
+    }
+
+    fn count(&self) -> usize {
+        let mut count = 0;
+        for i in 0..N {
+            count += self.0[i].count();
+        }
+        count
+    }
+}
+
+impl<P: BitsetOps + FixedSizeBitset + BitsetRangeOps + FullBitset, const N: usize> BitsetRangeOps
+    for PackedBitset<P, N>
+{
     fn set_range<R: RangeBounds<usize>>(&mut self, range: R) {
         let start = match range.start_bound() {
             Bound::Included(i) => *i,
@@ -90,7 +116,7 @@ impl<P: FixedSizeBitset + BitsetOps + Copy, const N: usize> BitsetOps for Packed
         let end = match range.end_bound() {
             Bound::Included(i) => *i + 1,
             Bound::Excluded(i) => *i,
-            Bound::Unbounded => self.size(),
+            Bound::Unbounded => Self::fixed_capacity(),
         };
 
         let mut start_element_index = self.element_index(start);
@@ -137,12 +163,6 @@ impl<P: FixedSizeBitset + BitsetOps + Copy, const N: usize> BitsetOps for Packed
         }
     }
 
-    fn unset(&mut self, index: usize) {
-        let element_index = self.element_index(index);
-        let bit_index = self.bit_index(index);
-        self.0[element_index].unset(bit_index);
-    }
-
     fn unset_range<R: RangeBounds<usize>>(&mut self, range: R) {
         let start = match range.start_bound() {
             Bound::Included(i) => *i,
@@ -152,7 +172,7 @@ impl<P: FixedSizeBitset + BitsetOps + Copy, const N: usize> BitsetOps for Packed
         let end = match range.end_bound() {
             Bound::Included(i) => *i + 1,
             Bound::Excluded(i) => *i,
-            Bound::Unbounded => self.size(),
+            Bound::Unbounded => Self::fixed_capacity(),
         };
 
         let mut start_element_index = self.element_index(start);
@@ -197,24 +217,6 @@ impl<P: FixedSizeBitset + BitsetOps + Copy, const N: usize> BitsetOps for Packed
                 }
             }
         }
-    }
-
-    fn get(&self, index: usize) -> bool {
-        let element_index = self.element_index(index);
-        let bit_index = self.bit_index(index);
-        self.0[element_index].get(bit_index)
-    }
-
-    fn count(&self) -> usize {
-        let mut count = 0;
-        for i in 0..N {
-            count += self.0[i].count();
-        }
-        count
-    }
-
-    fn size(&self) -> usize {
-        N * P::fixed_capacity()
     }
 }
 
