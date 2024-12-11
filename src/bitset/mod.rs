@@ -104,6 +104,15 @@ mod tests {
         }
     }
 
+    pub fn test_unset<BS: BitsetOps>() {
+        let mut bitset = BS::full();
+        bitset.unset(5);
+        assert!(!bitset.get(5));
+        for i in (0..bitset.size()).filter(|&i| i != 5) {
+            assert!(bitset.get(i));
+        }
+    }
+
     pub fn test_set_range<BS: BitsetOps>() {
         let mut bitset = BS::empty();
         bitset.set_range(0..bitset.size());

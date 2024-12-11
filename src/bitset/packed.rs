@@ -370,6 +370,31 @@ mod tests {
     }
 
     #[test]
+    fn test_unset_packed_u8_bitset() {
+        test_unset::<PackedBitset<PrimitiveBitset<u8>, TEST_PACKED_SIZE>>();
+    }
+
+    #[test]
+    fn test_unset_packed_u16_bitset() {
+        test_unset::<PackedBitset<PrimitiveBitset<u16>, TEST_PACKED_SIZE>>();
+    }
+
+    #[test]
+    fn test_unset_packed_u32_bitset() {
+        test_unset::<PackedBitset<PrimitiveBitset<u32>, TEST_PACKED_SIZE>>();
+    }
+
+    #[test]
+    fn test_unset_packed_u64_bitset() {
+        test_unset::<PackedBitset<PrimitiveBitset<u64>, TEST_PACKED_SIZE>>();
+    }
+
+    #[test]
+    fn test_unset_packed_u128_bitset() {
+        test_unset::<PackedBitset<PrimitiveBitset<u128>, TEST_PACKED_SIZE>>();
+    }
+
+    #[test]
     fn test_set_all_packed_u8_bitset() {
         test_set_all::<PackedBitset<PrimitiveBitset<u8>, TEST_PACKED_SIZE>>();
     }

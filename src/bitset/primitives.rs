@@ -224,6 +224,7 @@ mod tests {
         U64Bitset,
         U128Bitset
     );
+    crate::generate_tests!(test_unset, U8Bitset, U16Bitset, U32Bitset, U64Bitset, U128Bitset);
     crate::generate_tests!(
         test_set_range,
         U8Bitset,
