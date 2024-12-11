@@ -248,14 +248,16 @@ pub fn part1_solve_rc(input: &str, size: usize) -> u64 {
                     // This means that we only need check the lower bound for the first antinode and
                     // the upper bound for the second antinode.
                     if ra1 >= 0 && ca1 >= 0 && ca1 < size {
-                        let was_set = antinodes.get_unchecked_mut(ra1 as usize).set(ca1 as usize);
+                        let became_set =
+                            antinodes.get_unchecked_mut(ra1 as usize).set(ca1 as usize);
 
-                        antinode_count += !was_set as u64;
+                        antinode_count += became_set as u64;
                     }
 
                     if ca2 >= 0 && ra2 < size && ca2 < size {
-                        let was_set = antinodes.get_unchecked_mut(ra2 as usize).set(ca2 as usize);
-                        antinode_count += !was_set as u64;
+                        let became_set =
+                            antinodes.get_unchecked_mut(ra2 as usize).set(ca2 as usize);
+                        antinode_count += became_set as u64;
                     }
                 }
             }
@@ -345,8 +347,8 @@ pub fn part2_solve_rc(input: &str, size: usize) -> u64 {
                     // and from r2,c2 by rd,cd until we walk off the edge of the map.
 
                     loop {
-                        let was_set = antinodes.get_unchecked_mut(r1 as usize).set(c1 as usize);
-                        antinode_count += !was_set as u64;
+                        let was_updated = antinodes.get_unchecked_mut(r1 as usize).set(c1 as usize);
+                        antinode_count += was_updated as u64;
 
                         r1 -= rd;
                         c1 -= cd;
@@ -356,8 +358,8 @@ pub fn part2_solve_rc(input: &str, size: usize) -> u64 {
                     }
 
                     loop {
-                        let was_set = antinodes.get_unchecked_mut(r2 as usize).set(c2 as usize);
-                        antinode_count += !was_set as u64;
+                        let was_updated = antinodes.get_unchecked_mut(r2 as usize).set(c2 as usize);
+                        antinode_count += was_updated as u64;
 
                         r2 += rd;
                         c2 += cd;
@@ -375,7 +377,7 @@ pub fn part2_solve_rc(input: &str, size: usize) -> u64 {
 
 // I thought that this implementation would be faster, but it is consistently slower than the _rc implementation.
 // Without profiling, I don't know why.
-// It must be something to do with memory access patterns, as as far as I can tell this does less calculation. 
+// It must be something to do with memory access patterns, as as far as I can tell this does less calculation.
 pub fn part1_solve_enumerated(input: &str, size: usize) -> u64 {
     debug_assert!(size <= MAP_SIZE);
     debug_assert!(size > 0);
@@ -384,17 +386,20 @@ pub fn part1_solve_enumerated(input: &str, size: usize) -> u64 {
 
     // Loop over the input.
     // We only want the radio antennas, and their offset into the input.
-    for (pos, c) in input.as_bytes().iter().enumerate().filter(|(_,&c)| c >= b'0') {
+    for (pos, c) in input
+        .as_bytes()
+        .iter()
+        .enumerate()
+        .filter(|(_, &c)| c >= b'0')
+    {
         let pos = pos as i64;
         debug_assert!(
-            (b'0'..=b'9').contains(c)
-                || (b'A'..=b'Z').contains(&c)
-                || (b'a'..=b'z').contains(&c)
+            (b'0'..=b'9').contains(c) || (b'A'..=b'Z').contains(&c) || (b'a'..=b'z').contains(&c)
         );
 
-         // First thing is to convert the antenna letters into an index 0..(10+26+26)
-         let antenna_index = antenna_to_index_usize_early(*c);
-         unsafe {
+        // First thing is to convert the antenna letters into an index 0..(10+26+26)
+        let antenna_index = antenna_to_index_usize_early(*c);
+        unsafe {
             antennas
                 .get_unchecked_mut(antenna_index)
                 .push_unchecked(pos);
@@ -409,7 +414,7 @@ pub fn part1_solve_enumerated(input: &str, size: usize) -> u64 {
         for ans in antennas {
             for i in 0..ans.len() {
                 let an_i = ans.get_unchecked(i);
-                for j in i+1..ans.len() {
+                for j in i + 1..ans.len() {
                     let an_j = ans.get_unchecked(j);
 
                     // do the arithmetic to find the antinodes
@@ -430,12 +435,12 @@ pub fn part1_solve_enumerated(input: &str, size: usize) -> u64 {
                     let ai_row = std::intrinsics::unchecked_div(ai, row_byte_count);
                     let pi_row = std::intrinsics::unchecked_div(pi, row_byte_count);
                     let pj_row = std::intrinsics::unchecked_div(pj, row_byte_count);
-                    let aj_row = std::intrinsics::unchecked_div(ai+1, row_byte_count);
+                    let aj_row = std::intrinsics::unchecked_div(ai + 1, row_byte_count);
                     let gap = pj_row - pi_row;
                     let ai_gap = pi_row - ai_row;
                     let aj_gap = aj_row - pj_row;
 
-                    if ai >=0 && ai_gap == gap {
+                    if ai >= 0 && ai_gap == gap {
                         let was_set = antinodes.set_unchecked(ai as usize);
                         antinode_count += was_set as u64;
                     }
@@ -446,7 +451,6 @@ pub fn part1_solve_enumerated(input: &str, size: usize) -> u64 {
                     }
                 }
             }
-
         }
     }
 
@@ -464,17 +468,20 @@ pub fn part1_solve_enumerated2(input: &str, size: usize) -> u64 {
 
     // Loop over the input.
     // We only want the radio antennas, and their offset into the input.
-    for (pos, c) in input.as_bytes().iter().enumerate().filter(|(_,&c)| c >= b'0') {
+    for (pos, c) in input
+        .as_bytes()
+        .iter()
+        .enumerate()
+        .filter(|(_, &c)| c >= b'0')
+    {
         let pos = pos as i64;
         debug_assert!(
-            (b'0'..=b'9').contains(c)
-                || (b'A'..=b'Z').contains(&c)
-                || (b'a'..=b'z').contains(&c)
+            (b'0'..=b'9').contains(c) || (b'A'..=b'Z').contains(&c) || (b'a'..=b'z').contains(&c)
         );
 
-         // First thing is to convert the antenna letters into an index 0..(10+26+26)
-         let antenna_index = antenna_to_index_usize_early(*c);
-         unsafe {
+        // First thing is to convert the antenna letters into an index 0..(10+26+26)
+        let antenna_index = antenna_to_index_usize_early(*c);
+        unsafe {
             antennas
                 .get_unchecked_mut(antenna_index)
                 .push_unchecked(pos);
@@ -490,7 +497,7 @@ pub fn part1_solve_enumerated2(input: &str, size: usize) -> u64 {
         for ans in antennas {
             for i in 0..ans.len() {
                 let an_i = ans.get_unchecked(i);
-                for j in i+1..ans.len() {
+                for j in i + 1..ans.len() {
                     let an_j = ans.get_unchecked(j);
 
                     // do the arithmetic to find the antinodes
@@ -511,33 +518,33 @@ pub fn part1_solve_enumerated2(input: &str, size: usize) -> u64 {
                     let ai_row = std::intrinsics::unchecked_div(ai, row_byte_count);
                     let pi_row = std::intrinsics::unchecked_div(pi, row_byte_count);
                     let pj_row = std::intrinsics::unchecked_div(pj, row_byte_count);
-                    let aj_row = std::intrinsics::unchecked_div(ai+1, row_byte_count);
+                    let aj_row = std::intrinsics::unchecked_div(ai + 1, row_byte_count);
                     let gap = pj_row - pi_row;
                     let ai_gap = pi_row - ai_row;
                     let aj_gap = aj_row - pj_row;
 
-                    if ai >=0 && ai_gap == gap {
+                    if ai >= 0 && ai_gap == gap {
                         let ai_col = std::intrinsics::unchecked_rem(ai, row_byte_count);
-                        let was_set = antinodes.get_unchecked_mut(ai_row as usize)
+                        let was_set = antinodes
+                            .get_unchecked_mut(ai_row as usize)
                             .set_unchecked(ai_col as usize);
                         antinode_count += was_set as u64;
                     }
 
                     if aj < size && aj_gap == gap {
                         let aj_col = std::intrinsics::unchecked_rem(aj, row_byte_count);
-                        let was_set = antinodes.get_unchecked_mut(aj_row as usize)
+                        let was_set = antinodes
+                            .get_unchecked_mut(aj_row as usize)
                             .set_unchecked(aj_col as usize);
                         antinode_count += was_set as u64;
                     }
                 }
             }
-
         }
     }
 
     antinode_count
 }
-
 
 #[aoc(day8, part1)]
 pub fn part1(input: &str) -> u64 {

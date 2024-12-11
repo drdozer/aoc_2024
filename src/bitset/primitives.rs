@@ -11,7 +11,7 @@ use std::mem::size_of;
 use std::ops::Bound;
 
 /// A bitset implementation that uses a single unsigned integer, and contains one element per bit.
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, Default, PartialEq, Eq)]
 pub struct PrimitiveBitset<U> {
     pub bits: U,
 }
@@ -77,12 +77,11 @@ impl<U: Unsigned + PrimInt> BitsetOps for PrimitiveBitset<U> {
         }
     }
 
-    /// Sets the bit, returning true if it was previously unset.
     fn set(&mut self, index: usize) -> bool {
         let to_set = U::one() << index;
         let was_set = self.bits & to_set != U::zero();
         self.bits = self.bits | to_set;
-        was_set
+        !was_set
     }
 
     fn set_range<R: RangeBounds<usize>>(&mut self, range: R) {

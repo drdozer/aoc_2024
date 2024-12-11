@@ -89,7 +89,16 @@ mod tests {
     pub fn test_set_get<BS: BitsetOps>() {
         for i in 0..BS::empty().size() {
             let mut bitset = BS::empty();
-            bitset.set(i);
+            let was_set = bitset.set(i);
+            assert!(
+                was_set,
+                "setting an unset bit in bitset should have returned true"
+            );
+            let was_set = bitset.set(i);
+            assert!(
+                !was_set,
+                "setting a set bit in bitset should have returned false"
+            );
             assert!(bitset.get(i), "bitset should have bit i set");
             assert_eq!(bitset.count(), 1, "bitset should have count 1");
         }
@@ -108,7 +117,16 @@ mod tests {
     pub fn test_set_unset_get<BS: BitsetOps>() {
         for i in 0..BS::empty().size() {
             let mut bitset = BS::empty();
-            bitset.set(i);
+            let was_set = bitset.set(i);
+            assert!(
+                was_set,
+                "setting an unset bit in bitset should have returned true"
+            );
+            let was_set = bitset.set(i);
+            assert!(
+                !was_set,
+                "setting a set bit in bitset should have returned false"
+            );
             bitset.unset(i);
             assert!(!bitset.get(i), "bitset should not have bit {} unset", i);
             assert_eq!(bitset.count(), 0, "bitset should have count {}", i);
