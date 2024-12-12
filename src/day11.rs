@@ -4,7 +4,8 @@ use aoc_runner_derive::aoc;
 
 use crate::stack_vec::ArrayVec;
 
-const MAX_BLINKS: usize = 25;
+const MAX_BLINKS_PART1: usize = 25;
+const MAX_BLINKS_PART2: usize = 75;
 
 fn parse_input(input: &str) -> Vec<u64> {
     input
@@ -71,37 +72,103 @@ pub fn stone_rule(stone: u64) -> (u64, Option<u64>) {
     ((stone * 2024), None)
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct StackFrame {
+    stone: u64,
+    remaining_blinks: usize,
+}
+
 pub trait StoneCounter {
+    // The simplest version of the function. It always recurses.
+    // fn count_stones(&mut self, stone: u64, remaining_blinks: usize) -> usize {
+    //     if remaining_blinks == 0 {
+    //         // println!("{}", stone);
+    //         return 1;
+    //     }
+
+    //     if let Some(&count) = self.memo_get(&(stone, remaining_blinks)) {
+    //         return count;
+    //     }
+
+    //     let smaller_blinks = remaining_blinks - 1;
+    //     let (left, right) = stone_rule(stone);
+    //     let left_count = self.count_stones(left, smaller_blinks);
+    //     let right_count = right
+    //         .map(|right| self.count_stones(right, smaller_blinks))
+    //         .unwrap_or(0);
+
+    //     let stone_count = left_count + right_count;
+    //     self.memo_insert((stone, remaining_blinks), stone_count);
+    //     stone_count
+    // }
+
+    // This version is about 35% faster.
+    // It loops in the non-branching cases and only recurses on branches.
     fn count_stones(&mut self, stone: u64, remaining_blinks: usize) -> usize {
         if remaining_blinks == 0 {
-            // println!("{}", stone);
             return 1;
         }
 
-        if let Some(&count) = self.memo_get(&(stone, remaining_blinks)) {
+        if let Some(&count) = self.memo_get(&StackFrame {
+            stone,
+            remaining_blinks,
+        }) {
             return count;
         }
 
-        let smaller_blinks = remaining_blinks - 1;
-        let (left, right) = stone_rule(stone);
-        let left_count = self.count_stones(left, smaller_blinks);
-        let right_count = right
-            .map(|right| self.count_stones(right, smaller_blinks))
-            .unwrap_or(0);
+        let mut current_stone = stone;
+        let mut current_blinks = remaining_blinks;
+        // let mut right_stones = ArrayVec::<(u64, usize), MAX_BLINKS>::new();
 
-        let stone_count = left_count + right_count;
-        self.memo_insert((stone, remaining_blinks), stone_count);
-        stone_count
+        // Follow the linear path until we either hit a split or run out of blinks
+        loop {
+            let (left, right) = stone_rule(current_stone);
+            current_blinks -= 1;
+
+            match right {
+                // We found a split, recurse from here
+                Some(right) => {
+                    let left_count = self.count_stones(left, current_blinks);
+                    let right_count = self.count_stones(right, current_blinks);
+                    let stone_count = left_count + right_count;
+
+                    // Memoize all intermediate results we calculated
+                    self.memo_insert(
+                        StackFrame {
+                            stone,
+                            remaining_blinks,
+                        },
+                        stone_count,
+                    );
+                    return stone_count;
+                }
+                // No split, continue linear path
+                None => {
+                    if current_blinks == 0 {
+                        // We've used all blinks, memoize and return
+                        self.memo_insert(
+                            StackFrame {
+                                stone,
+                                remaining_blinks,
+                            },
+                            1,
+                        );
+                        return 1;
+                    }
+                    current_stone = left;
+                }
+            }
+        }
     }
 
     fn empty() -> Self;
-    fn memo_get(&self, key: &(u64, usize)) -> Option<&usize>;
-    fn memo_insert(&mut self, key: (u64, usize), value: usize);
+    fn memo_get(&self, key: &StackFrame) -> Option<&usize>;
+    fn memo_insert(&mut self, key: StackFrame, value: usize);
 }
 
 // This is simple but slightly slower, using a key that combines the stone and blink count.
 pub struct FlatMemoStoneCounter {
-    memo: HashMap<(u64, usize), usize>,
+    memo: HashMap<StackFrame, usize>,
 }
 
 impl StoneCounter for FlatMemoStoneCounter {
@@ -111,18 +178,18 @@ impl StoneCounter for FlatMemoStoneCounter {
         }
     }
 
-    fn memo_get(&self, key: &(u64, usize)) -> Option<&usize> {
+    fn memo_get(&self, key: &StackFrame) -> Option<&usize> {
         self.memo.get(key)
     }
 
-    fn memo_insert(&mut self, key: (u64, usize), value: usize) {
+    fn memo_insert(&mut self, key: StackFrame, value: usize) {
         self.memo.insert(key, value);
     }
 }
 
 // This is slightly faster. It stores a hashset per blink count.
 struct IndexedMemoStoneCounter {
-    memo: [HashMap<u64, usize>; MAX_BLINKS + 1],
+    memo: [HashMap<u64, usize>; MAX_BLINKS_PART2 + 1],
 }
 
 impl StoneCounter for IndexedMemoStoneCounter {
@@ -132,12 +199,20 @@ impl StoneCounter for IndexedMemoStoneCounter {
         }
     }
 
-    fn memo_get(&self, key: &(u64, usize)) -> Option<&usize> {
-        unsafe { self.memo.get_unchecked(key.1).get(&key.0) }
+    fn memo_get(&self, key: &StackFrame) -> Option<&usize> {
+        unsafe {
+            self.memo
+                .get_unchecked(key.remaining_blinks)
+                .get(&key.stone)
+        }
     }
 
-    fn memo_insert(&mut self, key: (u64, usize), value: usize) {
-        unsafe { self.memo.get_unchecked_mut(key.1).insert(key.0, value) };
+    fn memo_insert(&mut self, key: StackFrame, value: usize) {
+        unsafe {
+            self.memo
+                .get_unchecked_mut(key.remaining_blinks)
+                .insert(key.stone, value)
+        };
     }
 }
 
@@ -152,7 +227,13 @@ pub fn solve_part1<C: StoneCounter>(numbers: &[u64], max_blinks: usize) -> usize
 #[aoc(day11, part1)]
 pub fn part1(input: &str) -> usize {
     let numbers = parse_input(input);
-    solve_part1::<IndexedMemoStoneCounter>(&numbers, MAX_BLINKS)
+    solve_part1::<IndexedMemoStoneCounter>(&numbers, MAX_BLINKS_PART1)
+}
+
+#[aoc(day11, part2)]
+pub fn part2(input: &str) -> usize {
+    let numbers = parse_input(input);
+    solve_part1::<IndexedMemoStoneCounter>(&numbers, MAX_BLINKS_PART2)
 }
 
 #[cfg(test)]
@@ -161,6 +242,8 @@ mod tests {
 
     const INPUT: &str = include_str!("../input/2024/day11.txt");
     const INPUT_PARSED: [u64; 8] = [2, 54, 992917, 5270417, 2514, 28561, 0, 990];
+    const PART1_ANSWER: usize = 222461;
+    const PART2_ANSWER: usize = 264350935776416;
 
     #[test]
     fn test_parse_input() {
@@ -314,5 +397,15 @@ mod tests {
     #[test]
     fn test_example1_steps_indexed_memo() {
         test_example1_steps::<IndexedMemoStoneCounter>();
+    }
+
+    #[test]
+    fn test_part1() {
+        assert_eq!(part1(INPUT), PART1_ANSWER);
+    }
+
+    #[test]
+    fn test_part2() {
+        assert_eq!(part2(INPUT), PART2_ANSWER);
     }
 }

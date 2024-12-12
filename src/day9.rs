@@ -376,7 +376,13 @@ mod tests {
     fn test_sum_range() {
         for i in 0..100 {
             for j in 1..100 {
-                assert_eq!(sum_range(i, j), (i..i + j).sum(), "Failed for {}, {}", i, j);
+                assert_eq!(
+                    sum_range(i, j),
+                    (i..i + j).sum::<u64>(),
+                    "Failed for {}, {}",
+                    i,
+                    j
+                );
             }
         }
     }
