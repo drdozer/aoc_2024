@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, marker::PhantomData};
 
 use aoc_runner_derive::aoc;
 
@@ -78,38 +78,83 @@ pub struct StackFrame {
     remaining_blinks: usize,
 }
 
-pub trait StoneCounter {
+pub trait StoneMemo {
+    fn empty() -> Self;
+    fn memo_get(&self, key: &StackFrame) -> Option<&usize>;
+    fn memo_insert(&mut self, key: StackFrame, value: usize);
+}
+
+pub trait StoneCounter<SM: StoneMemo> {
+    fn count_stones(&self, stone: u64, remaining_blinks: usize) -> usize {
+        self.count_stones_memo(stone, remaining_blinks, &mut SM::empty())
+    }
+    fn count_multiple_stones(&self, stones: &[u64], remaining_blinks: usize) -> usize {
+        let mut memo = SM::empty();
+        stones
+            .iter()
+            .map(|&stone| self.count_stones_memo(stone, remaining_blinks, &mut memo))
+            .sum()
+    }
+    fn count_stones_memo(&self, stone: u64, remaining_blinks: usize, memo: &mut SM) -> usize;
+}
+
+struct NaiveMemoisedRecursion<SM>(PhantomData<SM>);
+impl<SM> Default for NaiveMemoisedRecursion<SM> {
+    fn default() -> Self {
+        Self(PhantomData)
+    }
+}
+impl<SM: StoneMemo> StoneCounter<SM> for NaiveMemoisedRecursion<SM> {
     // The simplest version of the function. It always recurses.
-    // fn count_stones(&mut self, stone: u64, remaining_blinks: usize) -> usize {
-    //     if remaining_blinks == 0 {
-    //         // println!("{}", stone);
-    //         return 1;
-    //     }
+    fn count_stones_memo(&self, stone: u64, remaining_blinks: usize, memo: &mut SM) -> usize {
+        if remaining_blinks == 0 {
+            // println!("{}", stone);
+            return 1;
+        }
 
-    //     if let Some(&count) = self.memo_get(&(stone, remaining_blinks)) {
-    //         return count;
-    //     }
+        if let Some(&count) = memo.memo_get(&StackFrame {
+            stone,
+            remaining_blinks,
+        }) {
+            return count;
+        }
 
-    //     let smaller_blinks = remaining_blinks - 1;
-    //     let (left, right) = stone_rule(stone);
-    //     let left_count = self.count_stones(left, smaller_blinks);
-    //     let right_count = right
-    //         .map(|right| self.count_stones(right, smaller_blinks))
-    //         .unwrap_or(0);
+        let smaller_blinks = remaining_blinks - 1;
+        let (left, right) = stone_rule(stone);
+        let left_count = self.count_stones_memo(left, smaller_blinks, memo);
+        let right_count = right
+            .map(|right| self.count_stones_memo(right, smaller_blinks, memo))
+            .unwrap_or(0);
 
-    //     let stone_count = left_count + right_count;
-    //     self.memo_insert((stone, remaining_blinks), stone_count);
-    //     stone_count
-    // }
+        let stone_count = left_count + right_count;
+        memo.memo_insert(
+            StackFrame {
+                stone,
+                remaining_blinks,
+            },
+            stone_count,
+        );
+        stone_count
+    }
+}
 
-    // This version is about 35% faster.
+struct LeftLoopingMemoisedRecursion<SM>(PhantomData<SM>);
+impl<SM> Default for LeftLoopingMemoisedRecursion<SM> {
+    fn default() -> Self {
+        Self(PhantomData)
+    }
+}
+
+impl<SM: StoneMemo> StoneCounter<SM> for LeftLoopingMemoisedRecursion<SM> {
+    // This version is about 35% faster than `NaiveMemoisedRecursion`.
+    //
     // It loops in the non-branching cases and only recurses on branches.
-    fn count_stones(&mut self, stone: u64, remaining_blinks: usize) -> usize {
+    fn count_stones_memo(&self, stone: u64, remaining_blinks: usize, memo: &mut SM) -> usize {
         if remaining_blinks == 0 {
             return 1;
         }
 
-        if let Some(&count) = self.memo_get(&StackFrame {
+        if let Some(&count) = memo.memo_get(&StackFrame {
             stone,
             remaining_blinks,
         }) {
@@ -128,12 +173,12 @@ pub trait StoneCounter {
             match right {
                 // We found a split, recurse from here
                 Some(right) => {
-                    let left_count = self.count_stones(left, current_blinks);
-                    let right_count = self.count_stones(right, current_blinks);
+                    let left_count = self.count_stones_memo(left, current_blinks, memo);
+                    let right_count = self.count_stones_memo(right, current_blinks, memo);
                     let stone_count = left_count + right_count;
 
                     // Memoize all intermediate results we calculated
-                    self.memo_insert(
+                    memo.memo_insert(
                         StackFrame {
                             stone,
                             remaining_blinks,
@@ -146,7 +191,7 @@ pub trait StoneCounter {
                 None => {
                     if current_blinks == 0 {
                         // We've used all blinks, memoize and return
-                        self.memo_insert(
+                        memo.memo_insert(
                             StackFrame {
                                 stone,
                                 remaining_blinks,
@@ -160,18 +205,14 @@ pub trait StoneCounter {
             }
         }
     }
-
-    fn empty() -> Self;
-    fn memo_get(&self, key: &StackFrame) -> Option<&usize>;
-    fn memo_insert(&mut self, key: StackFrame, value: usize);
 }
 
 // This is simple but slightly slower, using a key that combines the stone and blink count.
-pub struct FlatMemoStoneCounter {
+pub struct FlatHashMapMemo {
     memo: HashMap<StackFrame, usize>,
 }
 
-impl StoneCounter for FlatMemoStoneCounter {
+impl StoneMemo for FlatHashMapMemo {
     fn empty() -> Self {
         Self {
             memo: HashMap::new(),
@@ -188,11 +229,11 @@ impl StoneCounter for FlatMemoStoneCounter {
 }
 
 // This is slightly faster. It stores a hashset per blink count.
-struct IndexedMemoStoneCounter {
+struct IndexedHashMapsMemo {
     memo: [HashMap<u64, usize>; MAX_BLINKS_PART2 + 1],
 }
 
-impl StoneCounter for IndexedMemoStoneCounter {
+impl StoneMemo for IndexedHashMapsMemo {
     fn empty() -> Self {
         Self {
             memo: std::array::from_fn(|_| HashMap::new()),
@@ -216,24 +257,20 @@ impl StoneCounter for IndexedMemoStoneCounter {
     }
 }
 
-pub fn solve_part1<C: StoneCounter>(numbers: &[u64], max_blinks: usize) -> usize {
-    let mut counter = C::empty();
-    numbers
-        .iter()
-        .map(|&n| counter.count_stones(n, max_blinks))
-        .sum()
-}
-
 #[aoc(day11, part1)]
 pub fn part1(input: &str) -> usize {
     let numbers = parse_input(input);
-    solve_part1::<IndexedMemoStoneCounter>(&numbers, MAX_BLINKS_PART1)
+    let sc: LeftLoopingMemoisedRecursion<IndexedHashMapsMemo> = Default::default();
+
+    sc.count_multiple_stones(&numbers, MAX_BLINKS_PART1)
 }
 
 #[aoc(day11, part2)]
 pub fn part2(input: &str) -> usize {
     let numbers = parse_input(input);
-    solve_part1::<IndexedMemoStoneCounter>(&numbers, MAX_BLINKS_PART2)
+    let sc: LeftLoopingMemoisedRecursion<IndexedHashMapsMemo> = Default::default();
+
+    sc.count_multiple_stones(&numbers, MAX_BLINKS_PART2)
 }
 
 #[cfg(test)]
@@ -326,46 +363,49 @@ mod tests {
         assert_eq!(stone_rule(1036288), (2097446912, None));
     }
 
-    fn test_count_stones<C: StoneCounter>() {
+    fn test_count_stones<SC: StoneCounter<SM> + Default, SM: StoneMemo>() {
+        let sc = SC::default();
         // 0 -> 1
         println!("1 steps from 0");
-        assert_eq!(C::empty().count_stones(0, 1), 1);
+        assert_eq!(sc.count_stones(0, 1), 1);
         //  -> 2024
         println!("2 steps from 0");
-        assert_eq!(C::empty().count_stones(0, 2), 1);
+        assert_eq!(sc.count_stones(0, 2), 1);
         //  -> 2 24 ->
         println!("3 steps from 0");
-        assert_eq!(C::empty().count_stones(0, 3), 2);
+        assert_eq!(sc.count_stones(0, 3), 2);
         //  -> 4048 2 4
         println!("4 steps from 0");
-        assert_eq!(C::empty().count_stones(0, 4), 4);
+        assert_eq!(sc.count_stones(0, 4), 4);
         println!("5 steps from 0");
-        assert_eq!(C::empty().count_stones(0, 5), 4);
+        assert_eq!(sc.count_stones(0, 5), 4);
     }
 
     #[test]
     fn test_count_stones_flat_memo() {
-        test_count_stones::<FlatMemoStoneCounter>();
+        test_count_stones::<LeftLoopingMemoisedRecursion<FlatHashMapMemo>, _>();
     }
 
     #[test]
     fn test_count_stones_indexed_memo() {
-        test_count_stones::<IndexedMemoStoneCounter>();
+        test_count_stones::<LeftLoopingMemoisedRecursion<IndexedHashMapsMemo>, _>();
     }
 
-    fn test_example0<C: StoneCounter>() {
+    fn test_example0<SC: StoneCounter<SM> + Default, SM: StoneMemo>() {
+        let sc = SC::default();
+
         let input = [0, 1, 10, 99, 999];
-        assert_eq!(solve_part1::<C>(&input, 1), 7);
+        assert_eq!(sc.count_multiple_stones(&input, 1), 7);
     }
 
     #[test]
     fn test_example0_flat_memo() {
-        test_example0::<FlatMemoStoneCounter>();
+        test_example0::<LeftLoopingMemoisedRecursion<FlatHashMapMemo>, _>();
     }
 
     #[test]
     fn test_example0_indexed_memo() {
-        test_example0::<IndexedMemoStoneCounter>();
+        test_example0::<LeftLoopingMemoisedRecursion<IndexedHashMapsMemo>, _>();
     }
 
     #[test]
@@ -373,30 +413,32 @@ mod tests {
         assert_eq!(part1("125 17"), 55312);
     }
 
-    fn test_example1_steps<C: StoneCounter>() {
+    fn test_example1_steps<SC: StoneCounter<SM> + Default, SM: StoneMemo>() {
+        let sc = SC::default();
+
         let input = [125, 17];
         println!("Step 1");
-        assert_eq!(solve_part1::<C>(&input, 1), 3);
+        assert_eq!(sc.count_multiple_stones(&input, 1), 3);
         println!("Step 2");
-        assert_eq!(solve_part1::<C>(&input, 2), 4);
+        assert_eq!(sc.count_multiple_stones(&input, 2), 4);
         println!("Step 3");
-        assert_eq!(solve_part1::<C>(&input, 3), 5);
+        assert_eq!(sc.count_multiple_stones(&input, 3), 5);
         println!("Step 4");
-        assert_eq!(solve_part1::<C>(&input, 4), 9);
+        assert_eq!(sc.count_multiple_stones(&input, 4), 9);
         println!("Step 5");
-        assert_eq!(solve_part1::<C>(&input, 5), 13);
+        assert_eq!(sc.count_multiple_stones(&input, 5), 13);
         println!("Step 6");
-        assert_eq!(solve_part1::<C>(&input, 6), 22);
+        assert_eq!(sc.count_multiple_stones(&input, 6), 22);
     }
 
     #[test]
     fn test_example1_steps_flat_memo() {
-        test_example1_steps::<FlatMemoStoneCounter>();
+        test_example1_steps::<LeftLoopingMemoisedRecursion<FlatHashMapMemo>, _>();
     }
 
     #[test]
     fn test_example1_steps_indexed_memo() {
-        test_example1_steps::<IndexedMemoStoneCounter>();
+        test_example1_steps::<LeftLoopingMemoisedRecursion<IndexedHashMapsMemo>, _>();
     }
 
     #[test]
