@@ -15,7 +15,9 @@ impl<T: Default + Copy, const N: usize> ArrayVec<T, N> {
             len: len,
         }
     }
+}
 
+impl<T: Copy, const N: usize> ArrayVec<T, N> {
     pub fn pop(&mut self) -> Option<T> {
         if self.len == 0 {
             None
@@ -23,6 +25,11 @@ impl<T: Default + Copy, const N: usize> ArrayVec<T, N> {
             self.len -= 1;
             unsafe { Some(*self.data.get_unchecked(self.len)) }
         }
+    }
+
+    pub unsafe fn pop_unsafe(&mut self) -> T {
+        self.len -= 1;
+        *self.data.get_unchecked(self.len)
     }
 }
 

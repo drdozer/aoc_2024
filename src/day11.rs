@@ -7,6 +7,8 @@ use crate::stack_vec::ArrayVec;
 const MAX_BLINKS_PART1: usize = 25;
 const MAX_BLINKS_PART2: usize = 75;
 
+const SUMMARISE: bool = false;
+
 fn parse_input(input: &str) -> Vec<u64> {
     input
         .split_whitespace()
@@ -82,6 +84,7 @@ pub trait StoneMemo {
     fn empty() -> Self;
     fn memo_get(&self, key: &StackFrame) -> Option<&usize>;
     fn memo_insert(&mut self, key: StackFrame, value: usize);
+    fn summarise(&self);
 }
 
 pub trait StoneCounter<SM: StoneMemo> {
@@ -90,10 +93,16 @@ pub trait StoneCounter<SM: StoneMemo> {
     }
     fn count_multiple_stones(&self, stones: &[u64], remaining_blinks: usize) -> usize {
         let mut memo = SM::empty();
-        stones
+        let stone_count = stones
             .iter()
             .map(|&stone| self.count_stones_memo(stone, remaining_blinks, &mut memo))
-            .sum()
+            .sum();
+
+        if SUMMARISE {
+            memo.summarise();
+        }
+
+        stone_count
     }
     fn count_stones_memo(&self, stone: u64, remaining_blinks: usize, memo: &mut SM) -> usize;
 }
@@ -207,6 +216,111 @@ impl<SM: StoneMemo> StoneCounter<SM> for LeftLoopingMemoisedRecursion<SM> {
     }
 }
 
+struct LoopingMemoisingNoRecursion<SM>(PhantomData<SM>);
+impl<SM> Default for LoopingMemoisingNoRecursion<SM> {
+    fn default() -> Self {
+        Self(PhantomData)
+    }
+}
+
+impl<SM: StoneMemo> StoneCounter<SM> for LoopingMemoisingNoRecursion<SM> {
+    // Avoid all recursion by maintaining a local stack.
+    //
+    // This turns out to be really slow, as I think we do a lot more hashset lookups.
+
+    fn count_stones_memo(&self, stone: u64, remaining_blinks: usize, memo: &mut SM) -> usize {
+        unsafe {
+            let mut stack = ArrayVec::<StackFrame, { MAX_BLINKS_PART2 * 2 + 1 }>::new();
+            stack.push_unchecked(StackFrame {
+                stone,
+                remaining_blinks,
+            });
+
+            'stack_check: while let Some(&StackFrame {
+                stone,
+                remaining_blinks,
+            }) = stack.get_last()
+            {
+                // With no more blinks left, we just have the one stone.
+                if remaining_blinks == 0 {
+                    memo.memo_insert(stack.pop_unsafe(), 1);
+                    continue 'stack_check;
+                }
+                // Sanity check: early exit for when we already know the count.
+                if let Some(_) = memo.memo_get(&StackFrame {
+                    stone,
+                    remaining_blinks,
+                }) {
+                    stack.pop_unsafe();
+                    continue 'stack_check;
+                }
+
+                // OK, I guess we need to do some work then...
+                let (left, right) = stone_rule(stone);
+                let child_blinks = remaining_blinks - 1;
+
+                // The cases are:
+                // - left only
+                //   - left in cache: set count for stone to left count, pop stack
+                //   - left not in cache: push left onto stack
+                // - left and right
+                //   - left and right in cache: set stone count to sum of left and right count, pop stack
+                //   - otherwise, push left and righ onto stack if they don't have a count
+
+                match right {
+                    None => {
+                        let left_sf = StackFrame {
+                            stone: left,
+                            remaining_blinks: child_blinks,
+                        };
+                        let left_count = memo.memo_get(&left_sf);
+                        if let Some(&left_count) = left_count {
+                            memo.memo_insert(stack.pop_unsafe(), left_count);
+                        } else {
+                            stack.push_unchecked(StackFrame {
+                                stone: left,
+                                remaining_blinks: child_blinks,
+                            });
+                        }
+                    }
+                    Some(right) => {
+                        let left_sf = StackFrame {
+                            stone: left,
+                            remaining_blinks: child_blinks,
+                        };
+                        let right_sf = StackFrame {
+                            stone: right,
+                            remaining_blinks: child_blinks,
+                        };
+
+                        let left_count = memo.memo_get(&left_sf);
+                        let right_count = memo.memo_get(&right_sf);
+
+                        if let (Some(left_count), Some(right_count)) = (left_count, right_count) {
+                            memo.memo_insert(stack.pop_unsafe(), left_count + right_count);
+                        } else {
+                            if let None = right_count {
+                                stack.push_unchecked(right_sf);
+                            }
+                            if let None = left_count {
+                                stack.push_unchecked(left_sf);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Assuming we don't have bugs, the count should be in the memo
+        *memo
+            .memo_get(&StackFrame {
+                remaining_blinks,
+                stone,
+            })
+            .expect("Count should have been calculated")
+    }
+}
+
 // This is simple but slightly slower, using a key that combines the stone and blink count.
 pub struct FlatHashMapMemo {
     memo: HashMap<StackFrame, usize>,
@@ -225,6 +339,13 @@ impl StoneMemo for FlatHashMapMemo {
 
     fn memo_insert(&mut self, key: StackFrame, value: usize) {
         self.memo.insert(key, value);
+    }
+
+    fn summarise(&self) {
+        println!(
+            "FlathashMapMemo summary. Memoised count: {}",
+            self.memo.len()
+        )
     }
 }
 
@@ -254,6 +375,18 @@ impl StoneMemo for IndexedHashMapsMemo {
                 .get_unchecked_mut(key.remaining_blinks)
                 .insert(key.stone, value)
         };
+    }
+
+    fn summarise(&self) {
+        println!(
+            "FlathashMapMemo summary. Memoised count: {}",
+            self.memo
+                .iter()
+                .enumerate()
+                .map(|(i, m)| format!("{i}: {}", m.len()))
+                .collect::<Vec<_>>()
+                .join(", ")
+        )
     }
 }
 
@@ -432,13 +565,23 @@ mod tests {
     }
 
     #[test]
-    fn test_example1_steps_flat_memo() {
+    fn test_example1_steps_llmr_flat_memo() {
         test_example1_steps::<LeftLoopingMemoisedRecursion<FlatHashMapMemo>, _>();
     }
 
     #[test]
-    fn test_example1_steps_indexed_memo() {
+    fn test_example1_steps_llmr_indexed_memo() {
         test_example1_steps::<LeftLoopingMemoisedRecursion<IndexedHashMapsMemo>, _>();
+    }
+
+    #[test]
+    fn test_example1_steps_lmnr_flat_memo() {
+        test_example1_steps::<LoopingMemoisingNoRecursion<FlatHashMapMemo>, _>();
+    }
+
+    #[test]
+    fn test_example1_steps_lmnr_indexed_memo() {
+        test_example1_steps::<LoopingMemoisingNoRecursion<IndexedHashMapsMemo>, _>();
     }
 
     #[test]
