@@ -1,0 +1,318 @@
+use std::collections::HashMap;
+
+use aoc_runner_derive::aoc;
+
+use crate::stack_vec::ArrayVec;
+
+const MAX_BLINKS: usize = 25;
+
+fn parse_input(input: &str) -> Vec<u64> {
+    input
+        .split_whitespace()
+        .map(|s| s.parse().unwrap())
+        .collect()
+}
+
+// This is faster.
+pub fn count_digits_loop(n: u64) -> u64 {
+    let mut n = n;
+    let mut d = 0;
+    loop {
+        d += 1;
+        if n < 10 {
+            break;
+        }
+        n /= 10;
+    }
+    d
+}
+
+// This is slower.
+pub fn count_digits_table(n: u64) -> u64 {
+    let d_10 = (n >= 10) as u64;
+    let d_100 = (n >= 100) as u64;
+    let d_1000 = (n >= 1000) as u64;
+    let d_10000 = (n >= 10000) as u64;
+    let d_100000 = (n >= 100000) as u64;
+    let d_1000000 = (n >= 1000000) as u64;
+    let d_10000000 = (n >= 10000000) as u64;
+    let d_100000000 = (n >= 100000000) as u64;
+
+    d_10 + d_100 + d_1000 + d_10000 + d_100000 + d_1000000 + d_10000000 + d_100000000
+}
+
+// This is slowest.
+pub fn count_digits_ilog10(n: u64) -> u64 {
+    1 + n.abs_diff(0).checked_ilog10().unwrap_or_default() as u64
+}
+
+pub fn stone_rule(stone: u64) -> (u64, Option<u64>) {
+    if stone == 0 {
+        return (1, None);
+    }
+
+    let mut n = stone;
+    let mut p = 1;
+    let mut digits = 0;
+
+    while n > 0 {
+        n /= 10;
+        if digits % 2 == 0 {
+            p *= 10;
+        }
+        digits += 1;
+    }
+
+    if digits % 2 == 0 {
+        let (first, second) = (stone / p, stone % p);
+        return (first, Some(second));
+    }
+
+    ((stone * 2024), None)
+}
+
+pub trait StoneCounter {
+    fn count_stones(&mut self, stone: u64, remaining_blinks: usize) -> usize {
+        if remaining_blinks == 0 {
+            // println!("{}", stone);
+            return 1;
+        }
+
+        if let Some(&count) = self.memo_get(&(stone, remaining_blinks)) {
+            return count;
+        }
+
+        let smaller_blinks = remaining_blinks - 1;
+        let (left, right) = stone_rule(stone);
+        let left_count = self.count_stones(left, smaller_blinks);
+        let right_count = right
+            .map(|right| self.count_stones(right, smaller_blinks))
+            .unwrap_or(0);
+
+        let stone_count = left_count + right_count;
+        self.memo_insert((stone, remaining_blinks), stone_count);
+        stone_count
+    }
+
+    fn empty() -> Self;
+    fn memo_get(&self, key: &(u64, usize)) -> Option<&usize>;
+    fn memo_insert(&mut self, key: (u64, usize), value: usize);
+}
+
+// This is simple but slightly slower, using a key that combines the stone and blink count.
+pub struct FlatMemoStoneCounter {
+    memo: HashMap<(u64, usize), usize>,
+}
+
+impl StoneCounter for FlatMemoStoneCounter {
+    fn empty() -> Self {
+        Self {
+            memo: HashMap::new(),
+        }
+    }
+
+    fn memo_get(&self, key: &(u64, usize)) -> Option<&usize> {
+        self.memo.get(key)
+    }
+
+    fn memo_insert(&mut self, key: (u64, usize), value: usize) {
+        self.memo.insert(key, value);
+    }
+}
+
+// This is slightly faster. It stores a hashset per blink count.
+struct IndexedMemoStoneCounter {
+    memo: [HashMap<u64, usize>; MAX_BLINKS + 1],
+}
+
+impl StoneCounter for IndexedMemoStoneCounter {
+    fn empty() -> Self {
+        Self {
+            memo: std::array::from_fn(|_| HashMap::new()),
+        }
+    }
+
+    fn memo_get(&self, key: &(u64, usize)) -> Option<&usize> {
+        unsafe { self.memo.get_unchecked(key.1).get(&key.0) }
+    }
+
+    fn memo_insert(&mut self, key: (u64, usize), value: usize) {
+        unsafe { self.memo.get_unchecked_mut(key.1).insert(key.0, value) };
+    }
+}
+
+pub fn solve_part1<C: StoneCounter>(numbers: &[u64], max_blinks: usize) -> usize {
+    let mut counter = C::empty();
+    numbers
+        .iter()
+        .map(|&n| counter.count_stones(n, max_blinks))
+        .sum()
+}
+
+#[aoc(day11, part1)]
+pub fn part1(input: &str) -> usize {
+    let numbers = parse_input(input);
+    solve_part1::<IndexedMemoStoneCounter>(&numbers, MAX_BLINKS)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const INPUT: &str = include_str!("../input/2024/day11.txt");
+    const INPUT_PARSED: [u64; 8] = [2, 54, 992917, 5270417, 2514, 28561, 0, 990];
+
+    #[test]
+    fn test_parse_input() {
+        assert_eq!(parse_input(INPUT), INPUT_PARSED);
+    }
+
+    #[test]
+    fn test_count_digits_loop() {
+        let counts = INPUT_PARSED
+            .iter()
+            .map(|&n| count_digits_loop(n))
+            .collect::<Vec<_>>();
+        let expected = [1, 2, 6, 7, 4, 5, 1, 3];
+
+        assert_eq!(counts, expected);
+    }
+
+    #[test]
+    fn test_stone_rule_0() {
+        assert_eq!(stone_rule(0), (1, None));
+    }
+
+    #[test]
+    fn test_stone_rule_1() {
+        assert_eq!(stone_rule(1), (2024, None));
+    }
+
+    #[test]
+    fn test_stone_rule_2() {
+        assert_eq!(stone_rule(2), (4048, None));
+    }
+
+    #[test]
+    fn test_stone_rule_7() {
+        assert_eq!(stone_rule(7), (14168, None));
+    }
+
+    #[test]
+    fn test_stone_rule_4() {
+        assert_eq!(stone_rule(4), (8096, None));
+    }
+
+    #[test]
+    fn test_stone_rule_11() {
+        assert_eq!(stone_rule(11), (1, Some(1)));
+    }
+
+    #[test]
+    fn test_stone_rule_111() {
+        assert_eq!(stone_rule(111), (111 * 2024, None));
+    }
+
+    #[test]
+    fn test_stone_rule_1111() {
+        assert_eq!(stone_rule(1111), (11, Some(11)));
+    }
+
+    #[test]
+    fn test_stone_rule_1110() {
+        assert_eq!(stone_rule(1110), (11, Some(10)));
+    }
+
+    #[test]
+    fn test_stone_rule_1011() {
+        assert_eq!(stone_rule(1011), (10, Some(11)));
+    }
+
+    #[test]
+    fn test_stone_rule_2024() {
+        assert_eq!(stone_rule(2024), (20, Some(24)));
+    }
+
+    #[test]
+    fn test_stone_rule() {
+        assert_eq!(stone_rule(125), (253000, None));
+        assert_eq!(stone_rule(253000), (253, Some(0)));
+        assert_eq!(stone_rule(253), (512072, None));
+        assert_eq!(stone_rule(512072), (512, Some(72)));
+        assert_eq!(stone_rule(512), (1036288, None));
+        assert_eq!(stone_rule(1036288), (2097446912, None));
+    }
+
+    fn test_count_stones<C: StoneCounter>() {
+        // 0 -> 1
+        println!("1 steps from 0");
+        assert_eq!(C::empty().count_stones(0, 1), 1);
+        //  -> 2024
+        println!("2 steps from 0");
+        assert_eq!(C::empty().count_stones(0, 2), 1);
+        //  -> 2 24 ->
+        println!("3 steps from 0");
+        assert_eq!(C::empty().count_stones(0, 3), 2);
+        //  -> 4048 2 4
+        println!("4 steps from 0");
+        assert_eq!(C::empty().count_stones(0, 4), 4);
+        println!("5 steps from 0");
+        assert_eq!(C::empty().count_stones(0, 5), 4);
+    }
+
+    #[test]
+    fn test_count_stones_flat_memo() {
+        test_count_stones::<FlatMemoStoneCounter>();
+    }
+
+    #[test]
+    fn test_count_stones_indexed_memo() {
+        test_count_stones::<IndexedMemoStoneCounter>();
+    }
+
+    fn test_example0<C: StoneCounter>() {
+        let input = [0, 1, 10, 99, 999];
+        assert_eq!(solve_part1::<C>(&input, 1), 7);
+    }
+
+    #[test]
+    fn test_example0_flat_memo() {
+        test_example0::<FlatMemoStoneCounter>();
+    }
+
+    #[test]
+    fn test_example0_indexed_memo() {
+        test_example0::<IndexedMemoStoneCounter>();
+    }
+
+    #[test]
+    fn test_example1() {
+        assert_eq!(part1("125 17"), 55312);
+    }
+
+    fn test_example1_steps<C: StoneCounter>() {
+        let input = [125, 17];
+        println!("Step 1");
+        assert_eq!(solve_part1::<C>(&input, 1), 3);
+        println!("Step 2");
+        assert_eq!(solve_part1::<C>(&input, 2), 4);
+        println!("Step 3");
+        assert_eq!(solve_part1::<C>(&input, 3), 5);
+        println!("Step 4");
+        assert_eq!(solve_part1::<C>(&input, 4), 9);
+        println!("Step 5");
+        assert_eq!(solve_part1::<C>(&input, 5), 13);
+        println!("Step 6");
+        assert_eq!(solve_part1::<C>(&input, 6), 22);
+    }
+
+    #[test]
+    fn test_example1_steps_flat_memo() {
+        test_example1_steps::<FlatMemoStoneCounter>();
+    }
+
+    #[test]
+    fn test_example1_steps_indexed_memo() {
+        test_example1_steps::<IndexedMemoStoneCounter>();
+    }
+}
