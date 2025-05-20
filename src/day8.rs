@@ -249,14 +249,14 @@ pub fn part1_solve_rc(input: &str, size: usize) -> u64 {
                     // the upper bound for the second antinode.
                     if ra1 >= 0 && ca1 >= 0 && ca1 < size {
                         let became_set =
-                            antinodes.get_unchecked_mut(ra1 as usize).set(ca1 as usize);
+                            antinodes.get_unchecked_mut(ra1 as usize).insert(ca1 as usize);
 
                         antinode_count += became_set as u64;
                     }
 
                     if ca2 >= 0 && ra2 < size && ca2 < size {
                         let became_set =
-                            antinodes.get_unchecked_mut(ra2 as usize).set(ca2 as usize);
+                            antinodes.get_unchecked_mut(ra2 as usize).insert(ca2 as usize);
                         antinode_count += became_set as u64;
                     }
                 }
@@ -347,7 +347,7 @@ pub fn part2_solve_rc(input: &str, size: usize) -> u64 {
                     // and from r2,c2 by rd,cd until we walk off the edge of the map.
 
                     loop {
-                        let was_updated = antinodes.get_unchecked_mut(r1 as usize).set(c1 as usize);
+                        let was_updated = antinodes.get_unchecked_mut(r1 as usize).insert(c1 as usize);
                         antinode_count += was_updated as u64;
 
                         r1 -= rd;
@@ -358,7 +358,7 @@ pub fn part2_solve_rc(input: &str, size: usize) -> u64 {
                     }
 
                     loop {
-                        let was_updated = antinodes.get_unchecked_mut(r2 as usize).set(c2 as usize);
+                        let was_updated = antinodes.get_unchecked_mut(r2 as usize).insert(c2 as usize);
                         antinode_count += was_updated as u64;
 
                         r2 += rd;
@@ -441,12 +441,12 @@ pub fn part1_solve_enumerated(input: &str, size: usize) -> u64 {
                     let aj_gap = aj_row - pj_row;
 
                     if ai >= 0 && ai_gap == gap {
-                        let was_set = antinodes.set_unchecked(ai as usize);
+                        let was_set = antinodes.insert_unchecked(ai as usize);
                         antinode_count += was_set as u64;
                     }
 
                     if aj < size && aj_gap == gap {
-                        let was_set = antinodes.set_unchecked(aj as usize);
+                        let was_set = antinodes.insert_unchecked(aj as usize);
                         antinode_count += was_set as u64;
                     }
                 }
@@ -527,7 +527,7 @@ pub fn part1_solve_enumerated2(input: &str, size: usize) -> u64 {
                         let ai_col = std::intrinsics::unchecked_rem(ai, row_byte_count);
                         let was_set = antinodes
                             .get_unchecked_mut(ai_row as usize)
-                            .set_unchecked(ai_col as usize);
+                            .insert_unchecked(ai_col as usize);
                         antinode_count += was_set as u64;
                     }
 
@@ -535,7 +535,7 @@ pub fn part1_solve_enumerated2(input: &str, size: usize) -> u64 {
                         let aj_col = std::intrinsics::unchecked_rem(aj, row_byte_count);
                         let was_set = antinodes
                             .get_unchecked_mut(aj_row as usize)
-                            .set_unchecked(aj_col as usize);
+                            .insert_unchecked(aj_col as usize);
                         antinode_count += was_set as u64;
                     }
                 }

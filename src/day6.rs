@@ -107,11 +107,11 @@ impl Default for LabMapRow {
 
 impl LabMapRow {
     fn set_obstacle(&mut self, index: usize) {
-        self.0.set(index);
+        self.0.insert(index);
     }
 
     fn is_obstacle(&self, index: usize) -> bool {
-        self.0.get(index)
+        self.0.contains(index)
     }
 }
 
@@ -177,8 +177,8 @@ pub struct VisitedRow(RowBitset);
 impl VisitedRow {
     fn visit(&mut self, col: usize) -> bool {
         unsafe {
-            let unvisited = !self.0.get_unchecked(col);
-            self.0.set_unchecked(col);
+            let unvisited = !self.0.contains_unchecked(col);
+            self.0.insert_unchecked(col);
             unvisited
         }
     }

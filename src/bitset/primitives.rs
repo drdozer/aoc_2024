@@ -79,18 +79,18 @@ impl<U: PrimInt> BitsetOps for PrimitiveBitset<U> {
         Self { bits: U::zero() }
     }
 
-    fn set(&mut self, index: usize) -> bool {
+    fn insert(&mut self, index: usize) -> bool {
         let to_set = U::one() << index;
         let was_set = self.bits & to_set != U::zero();
         self.bits = self.bits | to_set;
         !was_set
     }
 
-    fn unset(&mut self, index: usize) {
+    fn remove(&mut self, index: usize) {
         self.bits = self.bits & !(U::one() << index);
     }
 
-    fn get(&self, index: usize) -> bool {
+    fn contains(&self, index: usize) -> bool {
         self.bits & U::one() << index != U::zero()
     }
 
@@ -100,7 +100,7 @@ impl<U: PrimInt> BitsetOps for PrimitiveBitset<U> {
 }
 
 impl<U: PrimInt> BitsetRangeOps for PrimitiveBitset<U> {
-    fn set_range<R: RangeBounds<usize>>(&mut self, range: R) {
+    fn insert_range<R: RangeBounds<usize>>(&mut self, range: R) {
         let start = match range.start_bound() {
             Bound::Included(i) => *i,
             Bound::Excluded(i) => *i + 1,
@@ -118,7 +118,7 @@ impl<U: PrimInt> BitsetRangeOps for PrimitiveBitset<U> {
         }
     }
 
-    fn unset_range<R: RangeBounds<usize>>(&mut self, range: R) {
+    fn remove_range<R: RangeBounds<usize>>(&mut self, range: R) {
         let start = match range.start_bound() {
             Bound::Included(i) => *i,
             Bound::Excluded(i) => *i + 1,
@@ -140,16 +140,16 @@ impl<U: PrimInt> BitsetRangeOps for PrimitiveBitset<U> {
 }
 
 impl<U: Unsigned + PrimInt> BitsetOpsUnsafe for PrimitiveBitset<U> {
-    unsafe fn set_unchecked(&mut self, index: usize) -> bool {
-        BitsetOps::set(self, index)
+    unsafe fn insert_unchecked(&mut self, index: usize) -> bool {
+        BitsetOps::insert(self, index)
     }
 
-    unsafe fn unset_unchecked(&mut self, index: usize) {
-        BitsetOps::unset(self, index);
+    unsafe fn remove_unchecked(&mut self, index: usize) {
+        BitsetOps::remove(self, index);
     }
 
-    unsafe fn get_unchecked(&self, index: usize) -> bool {
-        BitsetOps::get(self, index)
+    unsafe fn contains_unchecked(&self, index: usize) -> bool {
+        BitsetOps::contains(self, index)
     }
 }
 

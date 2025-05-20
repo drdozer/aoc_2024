@@ -77,22 +77,22 @@ impl<P: FixedSizeBitset + BitsetOps + Copy, const N: usize> BitsetOps for Packed
         Self([P::empty(); N])
     }
 
-    fn set(&mut self, index: usize) -> bool {
+    fn insert(&mut self, index: usize) -> bool {
         let element_index = self.element_index(index);
         let bit_index = self.bit_index(index);
-        self.0[element_index].set(bit_index)
+        self.0[element_index].insert(bit_index)
     }
 
-    fn unset(&mut self, index: usize) {
+    fn remove(&mut self, index: usize) {
         let element_index = self.element_index(index);
         let bit_index = self.bit_index(index);
-        self.0[element_index].unset(bit_index);
+        self.0[element_index].remove(bit_index);
     }
 
-    fn get(&self, index: usize) -> bool {
+    fn contains(&self, index: usize) -> bool {
         let element_index = self.element_index(index);
         let bit_index = self.bit_index(index);
-        self.0[element_index].get(bit_index)
+        self.0[element_index].contains(bit_index)
     }
 
     fn count(&self) -> usize {
@@ -107,7 +107,7 @@ impl<P: FixedSizeBitset + BitsetOps + Copy, const N: usize> BitsetOps for Packed
 impl<P: BitsetOps + FixedSizeBitset + BitsetRangeOps + FullBitset, const N: usize> BitsetRangeOps
     for PackedBitset<P, N>
 {
-    fn set_range<R: RangeBounds<usize>>(&mut self, range: R) {
+    fn insert_range<R: RangeBounds<usize>>(&mut self, range: R) {
         let start = match range.start_bound() {
             Bound::Included(i) => *i,
             Bound::Excluded(i) => *i + 1,
@@ -129,7 +129,7 @@ impl<P: BitsetOps + FixedSizeBitset + BitsetRangeOps + FullBitset, const N: usiz
             unsafe {
                 self.0
                     .get_unchecked_mut(start_element_index)
-                    .set_range(start_bit_index..end_bit_index);
+                    .insert_range(start_bit_index..end_bit_index);
             }
         } else {
             // The update covers multiple elements.
@@ -139,7 +139,7 @@ impl<P: BitsetOps + FixedSizeBitset + BitsetRangeOps + FullBitset, const N: usiz
                 unsafe {
                     self.0
                         .get_unchecked_mut(start_element_index)
-                        .set_range(start_bit_index..);
+                        .insert_range(start_bit_index..);
                 }
                 start_element_index += 1;
             }
@@ -149,7 +149,7 @@ impl<P: BitsetOps + FixedSizeBitset + BitsetRangeOps + FullBitset, const N: usiz
                 unsafe {
                     self.0
                         .get_unchecked_mut(end_element_index)
-                        .set_range(..end_bit_index);
+                        .insert_range(..end_bit_index);
                 }
                 end_element_index -= 1;
             }
@@ -163,7 +163,7 @@ impl<P: BitsetOps + FixedSizeBitset + BitsetRangeOps + FullBitset, const N: usiz
         }
     }
 
-    fn unset_range<R: RangeBounds<usize>>(&mut self, range: R) {
+    fn remove_range<R: RangeBounds<usize>>(&mut self, range: R) {
         let start = match range.start_bound() {
             Bound::Included(i) => *i,
             Bound::Excluded(i) => *i + 1,
@@ -185,7 +185,7 @@ impl<P: BitsetOps + FixedSizeBitset + BitsetRangeOps + FullBitset, const N: usiz
             unsafe {
                 self.0
                     .get_unchecked_mut(start_element_index)
-                    .unset_range(start_bit_index..end_bit_index);
+                    .remove_range(start_bit_index..end_bit_index);
             }
         } else {
             // The update covers multiple elements.
@@ -195,7 +195,7 @@ impl<P: BitsetOps + FixedSizeBitset + BitsetRangeOps + FullBitset, const N: usiz
                 unsafe {
                     self.0
                         .get_unchecked_mut(start_element_index)
-                        .unset_range(start_bit_index..);
+                        .remove_range(start_bit_index..);
                 }
                 start_element_index += 1;
             }
@@ -205,7 +205,7 @@ impl<P: BitsetOps + FixedSizeBitset + BitsetRangeOps + FullBitset, const N: usiz
                 unsafe {
                     self.0
                         .get_unchecked_mut(end_element_index)
-                        .unset_range(..end_bit_index);
+                        .remove_range(..end_bit_index);
                 }
                 end_element_index -= 1;
             }
@@ -223,26 +223,26 @@ impl<P: BitsetOps + FixedSizeBitset + BitsetRangeOps + FullBitset, const N: usiz
 impl<P: FixedSizeBitset + BitsetOpsUnsafe + Copy, const N: usize> BitsetOpsUnsafe
     for PackedBitset<P, N>
 {
-    unsafe fn set_unchecked(&mut self, index: usize) -> bool {
+    unsafe fn insert_unchecked(&mut self, index: usize) -> bool {
         let element_index = self.element_index(index);
         let bit_index = self.bit_index(index);
         self.0
             .get_unchecked_mut(element_index)
-            .set_unchecked(bit_index)
+            .insert_unchecked(bit_index)
     }
 
-    unsafe fn unset_unchecked(&mut self, index: usize) {
+    unsafe fn remove_unchecked(&mut self, index: usize) {
         let element_index = self.element_index(index);
         let bit_index = self.bit_index(index);
         self.0
             .get_unchecked_mut(element_index)
-            .unset_unchecked(bit_index);
+            .remove_unchecked(bit_index);
     }
 
-    unsafe fn get_unchecked(&self, index: usize) -> bool {
+    unsafe fn contains_unchecked(&self, index: usize) -> bool {
         let element_index = self.element_index(index);
         let bit_index = self.bit_index(index);
-        self.0.get_unchecked(element_index).get_unchecked(bit_index)
+        self.0.get_unchecked(element_index).contains_unchecked(bit_index)
     }
 }
 

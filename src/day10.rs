@@ -44,7 +44,7 @@ impl SparseBitset {
         let offset = value % PrimitiveBitset::<u16>::fixed_capacity();
         for e in self.elements[..self.used].iter_mut() {
             if e.0 == index {
-                return e.1.set(offset);
+                return e.1.insert(offset);
             }
         }
 
@@ -56,7 +56,7 @@ impl SparseBitset {
         self.used += 1;
         new_block.0 = index;
         new_block.1 = PrimitiveBitset::<u16>::empty();
-        new_block.1.set(offset)
+        new_block.1.insert(offset)
     }
 
     fn contains(&self, value: &usize) -> bool {
@@ -67,7 +67,7 @@ impl SparseBitset {
         for (i, e) in self.elements[..self.used].iter().enumerate() {
             if e.0 == index {
                 // println!("Found {:?} at {}", e, i);
-                return e.1.get(offset);
+                return e.1.contains(offset);
             }
         }
         false
@@ -78,7 +78,7 @@ impl SparseBitset {
         let offset = value % PrimitiveBitset::<u16>::fixed_capacity();
         for e in self.elements[..self.used].iter_mut() {
             if e.0 == index {
-                e.1.unset(offset);
+                e.1.remove(offset);
                 return;
             }
         }

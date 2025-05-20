@@ -51,7 +51,7 @@ impl<U: PrimInt, const N: usize> Components<U> for ArrayVec<SparseEntry<U>, N> {
 
     fn push_component(&mut self, index: usize, offset: usize) {
         let mut bits = PrimitiveBitset::<U>::empty();
-        bits.set(offset);
+        bits.insert(offset);
         unsafe { self.push_unchecked(SparseEntry { index, bits }) };
     }
 }
@@ -71,7 +71,7 @@ impl<U: PrimInt> Components<U> for Vec<SparseEntry<U>> {
 
     fn push_component(&mut self, index: usize, offset: usize) {
         let mut bits = PrimitiveBitset::<U>::empty();
-        bits.set(offset);
+        bits.insert(offset);
         self.push(SparseEntry { index, bits });
     }
 }
@@ -84,11 +84,11 @@ impl<C: Components<U>, U: PrimInt> BitsetOps for SparseBitset<C, U> {
         }
     }
 
-    fn set(&mut self, value: usize) -> bool {
+    fn insert(&mut self, value: usize) -> bool {
         let (index, offset) = self.components.index_offset(value);
         for SparseEntry { index: idx, bits } in self.components.as_mut_slice() {
             if *idx == index {
-                return bits.set(offset);
+                return bits.insert(offset);
             }
         }
 
@@ -96,20 +96,20 @@ impl<C: Components<U>, U: PrimInt> BitsetOps for SparseBitset<C, U> {
         true
     }
 
-    fn unset(&mut self, value: usize) {
+    fn remove(&mut self, value: usize) {
         let (index, offset) = self.components.index_offset(value);
         for SparseEntry { index: idx, bits } in self.components.as_mut_slice() {
             if *idx == index {
-                return bits.unset(offset);
+                return bits.remove(offset);
             }
         }
     }
 
-    fn get(&self, value: usize) -> bool {
+    fn contains(&self, value: usize) -> bool {
         let (index, offset) = self.components.index_offset(value);
         for bits in self.components.as_slice() {
             if bits.index == index {
-                return bits.bits.get(offset);
+                return bits.bits.contains(offset);
             }
         }
         false
