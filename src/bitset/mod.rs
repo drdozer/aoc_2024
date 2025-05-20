@@ -2,6 +2,7 @@ use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, RangeBounds};
 
 pub mod packed;
 pub mod primitives;
+pub mod simd;
 pub mod sparse;
 
 /// The fundamental bitset operations.
@@ -51,6 +52,25 @@ pub type PackedU16Bitset<const N: usize> = packed::PackedBitset<U16Bitset, N>;
 pub type PackedU32Bitset<const N: usize> = packed::PackedBitset<U32Bitset, N>;
 pub type PackedU64Bitset<const N: usize> = packed::PackedBitset<U64Bitset, N>;
 pub type PackedU128Bitset<const N: usize> = packed::PackedBitset<U128Bitset, N>;
+
+// SIMD bitset with fixed lane counts
+pub type SimdU8Bitset2 = simd::SimdU8Bitset2;
+pub type SimdU8Bitset4 = simd::SimdU8Bitset4;
+pub type SimdU8Bitset8 = simd::SimdU8Bitset8;
+pub type SimdU8Bitset16 = simd::SimdU8Bitset16;
+pub type SimdU8Bitset32 = simd::SimdU8Bitset32;
+
+pub type SimdU16Bitset2 = simd::SimdU16Bitset2;
+pub type SimdU16Bitset4 = simd::SimdU16Bitset4;
+pub type SimdU16Bitset8 = simd::SimdU16Bitset8;
+pub type SimdU16Bitset16 = simd::SimdU16Bitset16;
+
+pub type SimdU32Bitset2 = simd::SimdU32Bitset2;
+pub type SimdU32Bitset4 = simd::SimdU32Bitset4;
+pub type SimdU32Bitset8 = simd::SimdU32Bitset8;
+
+pub type SimdU64Bitset2 = simd::SimdU64Bitset2;
+pub type SimdU64Bitset4 = simd::SimdU64Bitset4;
 
 #[cfg(test)]
 mod tests {

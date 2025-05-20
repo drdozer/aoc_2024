@@ -295,379 +295,42 @@ mod tests {
     use super::*;
 
     const TEST_PACKED_SIZE: usize = 8;
+    type PackedBitsetTest<U> = PackedBitset<PrimitiveBitset<U>, TEST_PACKED_SIZE>;
+    
+    type PackedBitsetTestU8 = PackedBitsetTest<u8>;
+    type PackedBitsetTestU16 = PackedBitsetTest<u16>;
+    type PackedBitsetTestU32 = PackedBitsetTest<u32>;
+    type PackedBitsetTestU64 = PackedBitsetTest<u64>;
+    type PackedBitsetTestU128 = PackedBitsetTest<u128>;
 
-    #[test]
-    fn test_empty_packed_u8_bitset() {
-        test_empty::<PackedBitset<PrimitiveBitset<u8>, TEST_PACKED_SIZE>>();
-    }
-
-    #[test]
-    fn test_empty_packed_u16_bitset() {
-        test_empty::<PackedBitset<PrimitiveBitset<u16>, TEST_PACKED_SIZE>>();
-    }
-
-    #[test]
-    fn test_empty_packed_u32_bitset() {
-        test_empty::<PackedBitset<PrimitiveBitset<u32>, TEST_PACKED_SIZE>>();
-    }
-
-    #[test]
-    fn test_empty_packed_u64_bitset() {
-        test_empty::<PackedBitset<PrimitiveBitset<u64>, TEST_PACKED_SIZE>>();
-    }
-
-    #[test]
-    fn test_empty_packed_u128_bitset() {
-        test_empty::<PackedBitset<PrimitiveBitset<u128>, TEST_PACKED_SIZE>>();
-    }
-
-    #[test]
-    fn test_set_get_packed_u8_bitset() {
-        test_set_get::<PackedBitset<PrimitiveBitset<u8>, TEST_PACKED_SIZE>>();
-    }
-
-    #[test]
-    fn test_set_get_packed_u16_bitset() {
-        test_set_get::<PackedBitset<PrimitiveBitset<u16>, TEST_PACKED_SIZE>>();
-    }
-
-    #[test]
-    fn test_set_get_packed_u32_bitset() {
-        test_set_get::<PackedBitset<PrimitiveBitset<u32>, TEST_PACKED_SIZE>>();
-    }
-
-    #[test]
-    fn test_set_get_packed_u64_bitset() {
-        test_set_get::<PackedBitset<PrimitiveBitset<u64>, TEST_PACKED_SIZE>>();
-    }
-
-    #[test]
-    fn test_set_get_packed_u128_bitset() {
-        test_set_get::<PackedBitset<PrimitiveBitset<u128>, TEST_PACKED_SIZE>>();
-    }
-
-    #[test]
-    fn test_set_unset_get_packed_u8_bitset() {
-        test_set_unset_get::<PackedBitset<PrimitiveBitset<u8>, TEST_PACKED_SIZE>>();
-    }
-
-    #[test]
-    fn test_set_unset_get_packed_u16_bitset() {
-        test_set_unset_get::<PackedBitset<PrimitiveBitset<u16>, TEST_PACKED_SIZE>>();
-    }
-
-    #[test]
-    fn test_set_unset_get_packed_u32_bitset() {
-        test_set_unset_get::<PackedBitset<PrimitiveBitset<u32>, TEST_PACKED_SIZE>>();
-    }
-
-    #[test]
-    fn test_set_unset_get_packed_u64_bitset() {
-        test_set_unset_get::<PackedBitset<PrimitiveBitset<u64>, TEST_PACKED_SIZE>>();
-    }
-
-    #[test]
-    fn test_set_unset_get_packed_u128_bitset() {
-        test_set_unset_get::<PackedBitset<PrimitiveBitset<u128>, TEST_PACKED_SIZE>>();
-    }
-
-    #[test]
-    fn test_unset_packed_u8_bitset() {
-        test_unset::<PackedBitset<PrimitiveBitset<u8>, TEST_PACKED_SIZE>>();
-    }
-
-    #[test]
-    fn test_unset_packed_u16_bitset() {
-        test_unset::<PackedBitset<PrimitiveBitset<u16>, TEST_PACKED_SIZE>>();
-    }
-
-    #[test]
-    fn test_unset_packed_u32_bitset() {
-        test_unset::<PackedBitset<PrimitiveBitset<u32>, TEST_PACKED_SIZE>>();
-    }
-
-    #[test]
-    fn test_unset_packed_u64_bitset() {
-        test_unset::<PackedBitset<PrimitiveBitset<u64>, TEST_PACKED_SIZE>>();
-    }
-
-    #[test]
-    fn test_unset_packed_u128_bitset() {
-        test_unset::<PackedBitset<PrimitiveBitset<u128>, TEST_PACKED_SIZE>>();
-    }
-
-    #[test]
-    fn test_set_all_packed_u8_bitset() {
-        test_set_all::<PackedBitset<PrimitiveBitset<u8>, TEST_PACKED_SIZE>>();
-    }
-
-    #[test]
-    fn test_set_all_packed_u16_bitset() {
-        test_set_all::<PackedBitset<PrimitiveBitset<u16>, TEST_PACKED_SIZE>>();
-    }
-
-    #[test]
-    fn test_set_all_packed_u32_bitset() {
-        test_set_all::<PackedBitset<PrimitiveBitset<u32>, TEST_PACKED_SIZE>>();
-    }
-
-    #[test]
-    fn test_set_all_packed_u64_bitset() {
-        test_set_all::<PackedBitset<PrimitiveBitset<u64>, TEST_PACKED_SIZE>>();
-    }
-
-    #[test]
-    fn test_set_all_packed_u128_bitset() {
-        test_set_all::<PackedBitset<PrimitiveBitset<u128>, TEST_PACKED_SIZE>>();
-    }
-
-    #[test]
-    fn test_bitwise_and_packed_u8_bitset() {
-        test_bitwise_and::<PackedBitset<PrimitiveBitset<u8>, TEST_PACKED_SIZE>>();
-    }
-
-    #[test]
-    fn test_bitwise_and_packed_u16_bitset() {
-        test_bitwise_and::<PackedBitset<PrimitiveBitset<u16>, TEST_PACKED_SIZE>>();
-    }
-
-    #[test]
-    fn test_bitwise_and_packed_u32_bitset() {
-        test_bitwise_and::<PackedBitset<PrimitiveBitset<u32>, TEST_PACKED_SIZE>>();
-    }
-
-    #[test]
-    fn test_bitwise_and_packed_u64_bitset() {
-        test_bitwise_and::<PackedBitset<PrimitiveBitset<u64>, TEST_PACKED_SIZE>>();
-    }
-
-    #[test]
-    fn test_bitwise_and_packed_u128_bitset() {
-        test_bitwise_and::<PackedBitset<PrimitiveBitset<u128>, TEST_PACKED_SIZE>>();
-    }
-
-    #[test]
-    fn test_bitwise_and_assign_packed_u8_bitset() {
-        test_bitwise_and_assign::<PackedBitset<PrimitiveBitset<u8>, TEST_PACKED_SIZE>>();
-    }
-
-    #[test]
-    fn test_bitwise_and_assign_packed_u16_bitset() {
-        test_bitwise_and_assign::<PackedBitset<PrimitiveBitset<u16>, TEST_PACKED_SIZE>>();
-    }
-
-    #[test]
-    fn test_bitwise_and_assign_packed_u32_bitset() {
-        test_bitwise_and_assign::<PackedBitset<PrimitiveBitset<u32>, TEST_PACKED_SIZE>>();
-    }
-
-    #[test]
-    fn test_bitwise_and_assign_packed_u64_bitset() {
-        test_bitwise_and_assign::<PackedBitset<PrimitiveBitset<u64>, TEST_PACKED_SIZE>>();
-    }
-
-    #[test]
-    fn test_bitwise_and_assign_packed_u128_bitset() {
-        test_bitwise_and_assign::<PackedBitset<PrimitiveBitset<u128>, TEST_PACKED_SIZE>>();
-    }
-
-    #[test]
-    fn test_bitwise_or_packed_u8_bitset() {
-        test_bitwise_or::<PackedBitset<PrimitiveBitset<u8>, TEST_PACKED_SIZE>>();
-    }
-
-    #[test]
-    fn test_bitwise_or_packed_u16_bitset() {
-        test_bitwise_or::<PackedBitset<PrimitiveBitset<u16>, TEST_PACKED_SIZE>>();
-    }
-
-    #[test]
-    fn test_bitwise_or_packed_u32_bitset() {
-        test_bitwise_or::<PackedBitset<PrimitiveBitset<u32>, TEST_PACKED_SIZE>>();
-    }
-
-    #[test]
-    fn test_bitwise_or_packed_u64_bitset() {
-        test_bitwise_or::<PackedBitset<PrimitiveBitset<u64>, TEST_PACKED_SIZE>>();
-    }
-
-    #[test]
-    fn test_bitwise_or_packed_u128_bitset() {
-        test_bitwise_or::<PackedBitset<PrimitiveBitset<u128>, TEST_PACKED_SIZE>>();
-    }
-
-    #[test]
-    fn test_bitwise_or_assign_packed_u8_bitset() {
-        test_bitwise_or_assign::<PackedBitset<PrimitiveBitset<u8>, TEST_PACKED_SIZE>>();
-    }
-
-    #[test]
-    fn test_bitwise_or_assign_packed_u16_bitset() {
-        test_bitwise_or_assign::<PackedBitset<PrimitiveBitset<u16>, TEST_PACKED_SIZE>>();
-    }
-
-    #[test]
-    fn test_bitwise_or_assign_packed_u32_bitset() {
-        test_bitwise_or_assign::<PackedBitset<PrimitiveBitset<u32>, TEST_PACKED_SIZE>>();
-    }
-
-    #[test]
-    fn test_bitwise_or_assign_packed_u64_bitset() {
-        test_bitwise_or_assign::<PackedBitset<PrimitiveBitset<u64>, TEST_PACKED_SIZE>>();
-    }
-
-    #[test]
-    fn test_bitwise_or_assign_packed_u128_bitset() {
-        test_bitwise_or_assign::<PackedBitset<PrimitiveBitset<u128>, TEST_PACKED_SIZE>>();
-    }
-
-    #[test]
-    fn test_empty_iterator_packed_u8_bitset() {
-        test_empty_iterator::<PackedBitset<PrimitiveBitset<u8>, TEST_PACKED_SIZE>>();
-    }
-
-    #[test]
-    fn test_empty_iterator_packed_u16_bitset() {
-        test_empty_iterator::<PackedBitset<PrimitiveBitset<u16>, TEST_PACKED_SIZE>>();
-    }
-
-    #[test]
-    fn test_empty_iterator_packed_u32_bitset() {
-        test_empty_iterator::<PackedBitset<PrimitiveBitset<u32>, TEST_PACKED_SIZE>>();
-    }
-
-    #[test]
-    fn test_empty_iterator_packed_u64_bitset() {
-        test_empty_iterator::<PackedBitset<PrimitiveBitset<u64>, TEST_PACKED_SIZE>>();
-    }
-
-    #[test]
-    fn test_empty_iterator_packed_u128_bitset() {
-        test_empty_iterator::<PackedBitset<PrimitiveBitset<u128>, TEST_PACKED_SIZE>>();
-    }
-
-    #[test]
-    fn test_empty_iterator_back_packed_u8_bitset() {
-        test_empty_iterator_back::<PackedBitset<PrimitiveBitset<u8>, TEST_PACKED_SIZE>>();
-    }
-
-    #[test]
-    fn test_empty_iterator_back_packed_u16_bitset() {
-        test_empty_iterator_back::<PackedBitset<PrimitiveBitset<u16>, TEST_PACKED_SIZE>>();
-    }
-
-    #[test]
-    fn test_empty_iterator_back_packed_u32_bitset() {
-        test_empty_iterator_back::<PackedBitset<PrimitiveBitset<u32>, TEST_PACKED_SIZE>>();
-    }
-
-    #[test]
-    fn test_empty_iterator_back_packed_u64_bitset() {
-        test_empty_iterator_back::<PackedBitset<PrimitiveBitset<u64>, TEST_PACKED_SIZE>>();
-    }
-
-    #[test]
-    fn test_empty_iterator_back_packed_u128_bitset() {
-        test_empty_iterator_back::<PackedBitset<PrimitiveBitset<u128>, TEST_PACKED_SIZE>>();
-    }
-
-    #[test]
-    fn test_set_one_bit_iterator_packed_u8_bitset() {
-        test_set_one_bit_iterator::<PackedBitset<PrimitiveBitset<u8>, TEST_PACKED_SIZE>>();
-    }
-
-    #[test]
-    fn test_set_one_bit_iterator_packed_u16_bitset() {
-        test_set_one_bit_iterator::<PackedBitset<PrimitiveBitset<u16>, TEST_PACKED_SIZE>>();
-    }
-
-    #[test]
-    fn test_set_one_bit_iterator_packed_u32_bitset() {
-        test_set_one_bit_iterator::<PackedBitset<PrimitiveBitset<u32>, TEST_PACKED_SIZE>>();
-    }
-
-    #[test]
-    fn test_set_one_bit_iterator_packed_u64_bitset() {
-        test_set_one_bit_iterator::<PackedBitset<PrimitiveBitset<u64>, TEST_PACKED_SIZE>>();
-    }
-
-    #[test]
-    fn test_set_one_bit_iterator_packed_u128_bitset() {
-        test_set_one_bit_iterator::<PackedBitset<PrimitiveBitset<u128>, TEST_PACKED_SIZE>>();
-    }
-
-    #[test]
-    fn test_one_bit_iterator_back_packed_u8_bitset() {
-        test_one_bit_iterator_back::<PackedBitset<PrimitiveBitset<u8>, TEST_PACKED_SIZE>>();
-    }
-
-    #[test]
-    fn test_one_bit_iterator_back_packed_u16_bitset() {
-        test_one_bit_iterator_back::<PackedBitset<PrimitiveBitset<u16>, TEST_PACKED_SIZE>>();
-    }
-
-    #[test]
-    fn test_one_bit_iterator_back_packed_u32_bitset() {
-        test_one_bit_iterator_back::<PackedBitset<PrimitiveBitset<u32>, TEST_PACKED_SIZE>>();
-    }
-
-    #[test]
-    fn test_one_bit_iterator_back_packed_u64_bitset() {
-        test_one_bit_iterator_back::<PackedBitset<PrimitiveBitset<u64>, TEST_PACKED_SIZE>>();
-    }
-
-    #[test]
-    fn test_one_bit_iterator_back_packed_u128_bitset() {
-        test_one_bit_iterator_back::<PackedBitset<PrimitiveBitset<u128>, TEST_PACKED_SIZE>>();
-    }
-
-    #[test]
-    fn test_set_two_bit_iterator_packed_u8_bitset() {
-        test_set_two_bit_iterator::<PackedBitset<PrimitiveBitset<u8>, TEST_PACKED_SIZE>>();
-    }
-
-    #[test]
-    fn test_set_two_bit_iterator_packed_u16_bitset() {
-        test_set_two_bit_iterator::<PackedBitset<PrimitiveBitset<u16>, TEST_PACKED_SIZE>>();
-    }
-
-    #[test]
-    fn test_set_two_bit_iterator_packed_u32_bitset() {
-        test_set_two_bit_iterator::<PackedBitset<PrimitiveBitset<u32>, TEST_PACKED_SIZE>>();
-    }
-
-    #[test]
-    fn test_set_two_bit_iterator_packed_u64_bitset() {
-        test_set_two_bit_iterator::<PackedBitset<PrimitiveBitset<u64>, TEST_PACKED_SIZE>>();
-    }
-
-    #[test]
-    fn test_set_two_bit_iterator_packed_u128_bitset() {
-        test_set_two_bit_iterator::<PackedBitset<PrimitiveBitset<u128>, TEST_PACKED_SIZE>>();
-    }
-
-    #[test]
-    fn test_two_bit_iterator_back_packed_u8_bitset() {
-        test_set_two_bit_iterator_back::<PackedBitset<PrimitiveBitset<u8>, TEST_PACKED_SIZE>>();
-    }
-
-    #[test]
-    fn test_two_bit_iterator_back_packed_u16_bitset() {
-        test_set_two_bit_iterator_back::<PackedBitset<PrimitiveBitset<u16>, TEST_PACKED_SIZE>>();
-    }
-
-    #[test]
-    fn test_two_bit_iterator_back_packed_u32_bitset() {
-        test_set_two_bit_iterator_back::<PackedBitset<PrimitiveBitset<u32>, TEST_PACKED_SIZE>>();
-    }
-
-    #[test]
-    fn test_two_bit_iterator_back_packed_u64_bitset() {
-        test_set_two_bit_iterator_back::<PackedBitset<PrimitiveBitset<u64>, TEST_PACKED_SIZE>>();
-    }
-
-    #[test]
-    fn test_two_bit_iterator_back_packed_u128_bitset() {
-        test_set_two_bit_iterator_back::<PackedBitset<PrimitiveBitset<u128>, TEST_PACKED_SIZE>>();
-    }
+    crate::generate_tests!(test_empty, PackedBitsetTestU8, PackedBitsetTestU16, PackedBitsetTestU32, PackedBitsetTestU64, PackedBitsetTestU128);
+
+
+    crate::generate_tests!(test_set_get, PackedBitsetTestU8, PackedBitsetTestU16, PackedBitsetTestU32, PackedBitsetTestU64, PackedBitsetTestU128);
+
+    crate::generate_tests!(test_set_unset_get, PackedBitsetTestU8, PackedBitsetTestU16, PackedBitsetTestU32, PackedBitsetTestU64, PackedBitsetTestU128);
+
+    crate::generate_tests!(test_unset, PackedBitsetTestU8, PackedBitsetTestU16, PackedBitsetTestU32, PackedBitsetTestU64, PackedBitsetTestU128);
+
+    crate::generate_tests!(test_set_all, PackedBitsetTestU8, PackedBitsetTestU16, PackedBitsetTestU32, PackedBitsetTestU64, PackedBitsetTestU128);
+
+    crate::generate_tests!(test_bitwise_and, PackedBitsetTestU8, PackedBitsetTestU16, PackedBitsetTestU32, PackedBitsetTestU64, PackedBitsetTestU128);
+
+    crate::generate_tests!(test_bitwise_and_assign, PackedBitsetTestU8, PackedBitsetTestU16, PackedBitsetTestU32, PackedBitsetTestU64, PackedBitsetTestU128);
+
+    crate::generate_tests!(test_bitwise_or, PackedBitsetTestU8, PackedBitsetTestU16, PackedBitsetTestU32, PackedBitsetTestU64, PackedBitsetTestU128);
+
+    crate::generate_tests!(test_bitwise_or_assign, PackedBitsetTestU8, PackedBitsetTestU16, PackedBitsetTestU32, PackedBitsetTestU64, PackedBitsetTestU128);
+
+    crate::generate_tests!(test_empty_iterator, PackedBitsetTestU8, PackedBitsetTestU16, PackedBitsetTestU32, PackedBitsetTestU64, PackedBitsetTestU128);
+
+    crate::generate_tests!(test_empty_iterator_back, PackedBitsetTestU8, PackedBitsetTestU16, PackedBitsetTestU32, PackedBitsetTestU64, PackedBitsetTestU128);
+
+    crate::generate_tests!(test_set_one_bit_iterator, PackedBitsetTestU8, PackedBitsetTestU16, PackedBitsetTestU32, PackedBitsetTestU64, PackedBitsetTestU128);
+
+    crate::generate_tests!(test_one_bit_iterator_back, PackedBitsetTestU8, PackedBitsetTestU16, PackedBitsetTestU32, PackedBitsetTestU64, PackedBitsetTestU128);
+
+    crate::generate_tests!(test_set_two_bit_iterator, PackedBitsetTestU8, PackedBitsetTestU16, PackedBitsetTestU32, PackedBitsetTestU64, PackedBitsetTestU128);
+
+    crate::generate_tests!(test_set_two_bit_iterator_back, PackedBitsetTestU8, PackedBitsetTestU16, PackedBitsetTestU32, PackedBitsetTestU64, PackedBitsetTestU128);
 }

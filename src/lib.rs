@@ -2,6 +2,8 @@
 #![feature(hash_set_entry)]
 #![feature(core_intrinsics)]
 #![feature(strict_overflow_ops)]
+#![feature(slice_internals)]
+#![feature(portable_simd)]
 
 use aoc_runner;
 use aoc_runner_derive::aoc_lib;
@@ -12,6 +14,7 @@ pub mod stack_vec;
 pub mod day1;
 pub mod day10;
 pub mod day11;
+pub mod day12;
 pub mod day2;
 pub mod day3;
 pub mod day4;
